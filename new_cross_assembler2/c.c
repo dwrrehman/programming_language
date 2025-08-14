@@ -61,7 +61,8 @@ enum memory_mapped_addresses {
 };
 
 enum isa {
-	zero, incr, set, add, sub, mul, div_, 
+	zero, incr, 
+	set, add, sub, mul, div_, 
 	and_, or_, eor, si, sd, 
 	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
@@ -78,7 +79,8 @@ enum isa {
 };
 
 static const char* operations[isa_count] = {
-	"zero", "incr", "set", "add", "sub", "mul", "div", 
+	"zero", "incr", 
+	"set", "add", "sub", "mul", "div", 
 	"and", "or", "eor", "si", "sd", 
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi",
@@ -94,7 +96,8 @@ static const char* operations[isa_count] = {
 };
 
 static const nat arity[isa_count] = {
-	1, 1, 2, 2, 2, 2, 2,
+	1, 1, 
+	2, 2, 2, 2, 2,
 	2, 2, 2, 2, 2, 
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
@@ -111,48 +114,41 @@ static const nat arity[isa_count] = {
 
 static const nat is_undefined = 1;
 static const nat is_ct_label = 2;
-
 static const char* output_filename = "output_from_assembler";
-
 static nat format = no_output;
 static nat should_overwrite = false;
 static nat stack_size = 0;
 static nat family_id = 0;
-
 static uint8_t* output_bytes = NULL;
 static nat output_count = 0;
-
 static nat memory[max_memory_size] = {0};
-
 static nat file_count = 0;
 static const char* file_names[max_file_count] = {0};
 static nat file_name_lengths[max_file_count] = {0};
 static const char* file_text[max_file_count] = {0};
 static nat file_length[max_file_count] = {0};
-
 static nat file_mapping[max_instruction_count] = {0};
 static nat file_offset[max_instruction_count * 16] = {0};
 static nat ins[max_instruction_count * 16] = {0};
 static nat ins_count = 0;
-
 static const char* variables[max_variable_count] = {0};
 static nat variable_length[max_variable_count] = {0};
 static nat values[max_variable_count] = {0};
 static byte types[max_variable_count] = {0};
 static nat var_count = 0;
-
 static const char* strings[max_string_count] = {0};
 static nat string_count = 0;
-
 static nat section_starts[max_section_count] = {0};
 static nat section_addresses[max_section_count] = {0};
 static nat section_count = 0;
+#define get_op(n) (n & 0xffffffff)
+#define get_imm(n) (n >> 32LLU)
 
 static void insert_byte(byte x) {
 	output_bytes = realloc(output_bytes, output_count + 1);
 	output_bytes[output_count++] = x;
 }
-static void insert_bytes(char* s, nat len) {
+static void insert_bytes(const char* s, nat len) {
 	for (nat i = 0; i < len; i++) insert_byte((byte) s[i]);
 }
 static void insert_u16(u16 x) {
@@ -201,15 +197,13 @@ static void insert_u64(nat x) {
 #define	MH_OBJECT 		0x1
 #define REFERENCE_FLAG_DEFINED 	2
 
-
-
 static char* load_file(const char* given_filename, nat filename_length, nat* text_length) {
 	char filename[4096] = {0};
 	if (filename_length >= 4096) filename_length = 4095;
 	memcpy(filename, given_filename, filename_length);
 	int file = open(filename, O_RDONLY);
 	if (file < 0) { 
-		printf("error: could not open '%s': %s\n", 
+		printf("assembler: \033[31;1merror:\033[0m could not open '%s': %s\n", 
 			filename, strerror(errno)
 		); 
 		exit(1);
@@ -222,11 +216,10 @@ static char* load_file(const char* given_filename, nat filename_length, nat* tex
 	return text;
 }
 
-
 static void write_output(byte* string, nat count) {
 	if (not access(output_filename, F_OK)) {
 		if (not should_overwrite) {
-			printf("warning: file exists. do you wish to remove the previous one? (y/n) ");
+			printf("\033[35mwarning:\033[0m file exists. do you wish to remove the previous one? (y/n) ");
 			fflush(stdout);
 		}
 		if (should_overwrite or getchar() == 'y') {
@@ -249,13 +242,11 @@ static void write_output(byte* string, nat count) {
 	}
 	write(file, string, count);
 	close(file); 
-
 	if (not debug) return;
 	printf("debug: write_output: wrote %llu bytes to file %s.\n", 
 		output_count, output_filename
 	);
 }
-
 
 static bool within(nat a, nat b, nat k) { 
 	if (a < b) return b - a < k;
@@ -266,20 +257,16 @@ static void print_source_at(
 	const char* text, 
 	const nat text_length, 
 	nat begin, nat end,
-
-	const char* note,
-	nat value,
-	byte mode
+	const char* note, 
+	nat value, byte mode
 ) {
 	const nat window_width = 60;
 	const nat error_radius = 4;
 	while (end and end < text_length and isspace(text[end])) end--;
-
 	if (begin >= text_length or end >= text_length) {
 		printf("(error was not contained in the source?..)\n");
 		return;
 	}
-
 	nat row_count = 0, column_count = 0;
 	for (nat i = 0; i < begin; i++) {
 		const char c = text[i];
@@ -290,45 +277,35 @@ static void print_source_at(
 
 		if (column_count >= window_width - 1) { row_count++; column_count = 0; }
 	}
-
 	const nat error_row = row_count; row_count = 0;
 	const nat error_column = column_count; column_count = 0;
-
 	printf("\033[38;5;240m__________");
 	for (nat i = 0; i < window_width; i++) putchar('_');
 	printf("___\033[0m");
 	puts("");
 	puts("");
-
 	nat line_count = 1;
 
 	for (nat i = 0; i < text_length; i++) {
-
 		const char c = text[i];
-		const bool near = within(row_count, error_row, error_radius);
-		
+		const bool near = within(row_count, error_row, error_radius);		
 		if ((i == 0 or text[i - 1] == 10) and near) {
 			printf("\033[38;5;240m%6llu\033[0m \033[32m│\033[0m ", line_count); 
-		}
-		
+		}		
 		if (i == begin) printf("\033[31;1m");
-
 		if (c == 10) {
 			line_count++;
 			if (near) puts("");
-
 			if (row_count == error_row) { 
 				//printf("       \033[31m→\033[0m ");
 				printf("         ");
 				for (nat e = 0; e < error_column; e++) putchar(' ');
 				printf("\033[32;1m^");
 				for (nat e = 0; e < end - begin; e++) putchar('~');
-
 				if (mode == 0) printf("\033[38;5;240m     (%s) \033[0m \n", note);
 				else if (mode == 1) printf("\033[38;5;240m     (has value 0x%llx) \033[0m \n", value);
 				else if (mode == 2) printf("\033[38;5;240m     (call at pc 0x%llx) \033[0m \n", value);
 			} 
-
 			column_count = 0;
 			row_count++; 
 
@@ -340,10 +317,7 @@ static void print_source_at(
 			if (near) putchar(c);
 			column_count++;
 		}
-
 		if (i == end) printf("\033[0m");
-
-
 		if (column_count >= window_width - 1) { 
 			if (near) puts("");
 			if (row_count == error_row) { 
@@ -352,44 +326,24 @@ static void print_source_at(
 				for (nat e = 0; e < error_column; e++) putchar(' ');
 				printf("\033[32;1m^");
 				for (nat e = 0; e < end - begin; e++) putchar('~');
-
 				if (mode == 0) printf("\033[38;5;240m     (%s) \033[0m \n", note);
 				else if (mode == 1) printf("\033[38;5;240m     (has value 0x%llx) \033[0m \n", value);
 				else if (mode == 2) printf("\033[38;5;240m     (pc 0x%llx) \033[0m \n", value);
-			} 
+			}
 			column_count = 0;
 			row_count++;
 			if (near) printf("\033[38;5;233m%6llu\033[0m \033[32m│\033[0m ", line_count);
 		} 
 	}
-	if (column_count) puts("");
+	puts("");
 	printf("\033[38;5;240m__________");
 	for (nat i = 0; i < window_width; i++) putchar('_');
 	printf("___\033[0m");
 	puts("\n");
 }
 
-
-
-static void dump_hex(uint8_t* m, nat count) {
-	puts("second debug output:    debugging executable bytes:\n");
-	for (nat i = 0; i < count; i++) {
-		if (i % 16 == 0) puts("");
-		if (i % 64 == 0) puts("");
-		if (i % 4 == 0) putchar(32);
-		if (m[i]) printf("\033[32;1m");
-		printf("%02hhx ", m[i]);
-		if (m[i]) printf("\033[0m");
-	}
-	puts("\n");
-}
-
-
-
 static void print_stack_trace(void) {
-
 	//dump_hex((uint8_t*) memory, 256);
-
 	const nat sp = memory[ctstackpointer];
 	if (ctcallstack > sp) {
 		puts("ERROR: could not print call stack, stack pointer invalid!");
@@ -397,27 +351,21 @@ static void print_stack_trace(void) {
 	}
 	const nat count = sp - ctcallstack;
 	for (nat i = count; i--;) {
-
 		const nat pc = memory[ctcallstack + i];
 		const nat value = pc;
 		const nat arg = 0;
-
 		const nat begin = file_offset[pc + arg];
 		const nat this_file = file_mapping[pc / 16];
-	
-		const char* filename = file_names[this_file];
+			const char* filename = file_names[this_file];
 		nat filename_length = file_name_lengths[this_file];
 		const char* text = file_text[this_file];
-		const nat text_length = file_length[this_file];
-	
+		const nat text_length = file_length[this_file];	
 		nat end = begin;
 		while(end < text_length and not isspace(text[end])) end++;
-
 		puts("\n");
 		printf("%.*s:%llu:%llu: 0x%llx:a%llu: \033[36;1minfo:\033[0m %s, pc 0x%llx(%lld)\n", 
 			(int) filename_length, filename, begin, end, pc, arg, "called from here", value, value
 		);
-
 		print_source_at(text, text_length, begin, end, "", value, 2);
 	}
 }
@@ -425,36 +373,32 @@ static void print_stack_trace(void) {
 noreturn static void print_error(
 	const char* message, nat value, nat pc, nat arg
 ) {
-
 	const nat begin = file_offset[pc + arg];
 	const nat this_file = file_mapping[pc / 16];
-
 	const char* filename = file_names[this_file];
 	nat filename_length = file_name_lengths[this_file];
 	const char* text = file_text[this_file];
 	const nat text_length = file_length[this_file];
-
 	nat end = begin;
 	while(end < text_length and not isspace(text[end])) end++;
-
 	printf("%.*s:%llu:%llu: 0x%llx:a%llu: \033[31;1merror:\033[0m %s\n\tfound 0x%llx(%lld)\n", 
 		(int) filename_length, filename, begin, end, pc, arg, message, value, value
 	);
-
 	print_source_at(text, text_length, begin, end, "", value, 1);
-
 	print_stack_trace();
-
 	abort();
 }
 
 noreturn static void parse_error(
-	const char* message, const char* note, const char* string, nat length, nat this_file, nat begin, nat end
+	const char* message, 
+	const char* note, 
+	const char* string, 
+	nat length, 
+	nat this_file, 
+	nat begin, nat end
 ) {
-
 	const char* filename = file_names[this_file];
 	nat filename_length = file_name_lengths[this_file];
-
 	printf("%.*s:%llu:%llu: \033[31;1merror:\033[0m %s: %.*s\n", 
 		(int) filename_length, filename, 
 		begin, end, message, 
@@ -475,9 +419,18 @@ static bool equals(
 	return true;
 }
 
-
-#define get_op(n) (n & 0xffffffff)
-#define get_imm(n) (n >> 32LLU)
+static void dump_hex(uint8_t* m, nat count) {
+	puts("second debug output:    debugging executable bytes:\n");
+	for (nat i = 0; i < count; i++) {
+		if (i % 16 == 0) puts("");
+		if (i % 64 == 0) puts("");
+		if (i % 4 == 0) putchar(32);
+		if (m[i]) printf("\033[32;1m");
+		printf("%02hhx ", m[i]);
+		if (m[i]) printf("\033[0m");
+	}
+	puts("\n");
+}
 
 static void print_dictionary(void) {
 	puts("dictionary: ");
@@ -491,44 +444,34 @@ static void print_dictionary(void) {
 }
 
 static void print_instruction(nat* in) {
-
 	const nat op = get_op(in[0]);
-	const nat imm = get_imm(in[0]);
-	
+	const nat imm = get_imm(in[0]);	
 	printf(" %4s  ", operations[op]);
-
 	if (op == str) {
 		printf("\"%.*s\"", (int) in[1], strings[in[2]]);
 		return;
 	} 
-
 	for (nat a = 0; a < arity[op]; a++) {
-
 		char string[4096] = {0};
-
 		const nat arg = in[a + 1];
-
 		if (imm & (1 << a))
 			snprintf(
 				string, sizeof string,
 				"%llx(%lld)", 
 				arg, arg
 			);
-
 		else if (arg < var_count) 
 			snprintf(
 				string, sizeof string, 
 				"%.*s\033[38;5;235m(%llu)\033[0m", 
 				(int) variable_length[arg], variables[arg], arg
 			);
-
 		else 
 			snprintf(
 				string, sizeof string, 
 				"(INTERNAL ERROR)(%llu)", 
 				arg
 			);
-
 		printf("%s ", string);
 	}
 }
@@ -615,7 +558,8 @@ read_loop:
 		puts("");
 
 	} else if (not strcmp(input, ":output\n")) {
-		dump_hex(output_bytes, output_count);
+		if (pass) dump_hex(output_bytes, output_count);
+		else printf("output_count = %llu\n", output_count);
 
 	} else if (not strcmp(input, ":memory\n")) {
 		dump_hex((uint8_t*) memory, 256);
@@ -680,25 +624,21 @@ static void generate_machine_instruction(nat* in, nat pc) {
 		if (op == emit) {
 
 			if (a0 == 8) insert_u64(a1);
-
 			else if (a0 == 4) {
 				if (a1 >= (1LLU << 32LLU)) print_error("invalid emit u32 data argument", a1, pc, 1); 
 				insert_u32((uint32_t) a1);
-			}
 
-			else if (a0 == 2) {
+			} else if (a0 == 2) {
 				if (a1 >= (1LLU << 16LLU)) print_error("invalid emit u16 data argument", a1, pc, 1); 
 				insert_u16((uint16_t) a1);
-			}
 
-			else if (a0 == 1) {
+			} else if (a0 == 1) {
 				if (a1 >= (1LLU << 8LLU)) print_error("invalid emit u8 data argument", a1, pc, 1); 
 				insert_byte((uint8_t) a1);
 
 			} else {
 				print_error("invalid emit size, must be 1, 2, 4, or 8", a0, pc, 0);
-			} 
-
+			}
 
 		} else if (op == sect) {
 
@@ -1123,6 +1063,31 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 
+
+static nat get_length(nat* in) {
+
+	const nat op = get_op(in[0]);
+	const nat a0 = in[1];
+	const nat a1 = in[2];
+	const nat a4 = in[5];
+	const nat a5 = in[6];
+
+	nat length = 4;
+	if (op == mo) {
+		length = 2;
+		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
+		if (a1 == 1) length += 2;
+	}
+	else if (op == mb) length = 2;
+	else if (op == sect) length = 0;
+	else if (op == emit) length = a0;
+	else length = 4;
+
+	return length;
+}
+
+
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
 
@@ -1195,24 +1160,18 @@ process_file:;
 				if (not (types[i] & is_ct_label)) continue;
 				if (equals(word, variables[i], length, variable_length[i])) {
 					ins[ins_count + 0] = eq | (3LLU << 32LLU);
-
 					ins[ins_count + 1] = 0;
 					ins[ins_count + 2] = 0;
 					ins[ins_count + 3] = i;
-
 					file_offset[ins_count + 0] = start;
 					file_offset[ins_count + 1] = start;
 					file_offset[ins_count + 2] = start;
 					file_offset[ins_count + 3] = start;
-
 					file_mapping[ins_count / 16] = this_file;
-
 					ins_count += 16;
-
 					goto finish_operation;
 				}
 			}
-
 			parse_error(
 				"nonexistent operation", 
 				"expected valid operation name here", 
@@ -1336,7 +1295,6 @@ process_file:;
 		getchar();
 	}
 
-
 	nat in[16] = {0};
 	for (nat pass = 0; pass < 2; pass++) {
 	memory[assembler_pass] = pass;
@@ -1350,50 +1308,27 @@ process_file:;
 		const nat arg0 = ins[pc + 1];
 		const nat arg1 = ins[pc + 2];
 		const nat arg2 = ins[pc + 3];
-
 		const nat val0 = (imm & 1) or 0 >= arity[op] ? arg0 : values[arg0];
 		const nat val1 = (imm & 2) or 1 >= arity[op] ? arg1 : values[arg1];
 		const nat val2 = (imm & 4) or 2 >= arity[op] ? arg2 : values[arg2];
 
-		if ((op == lt or op == eq) and val2 >= ins_count) {
-			printf("error: at pc %llu invalid jump address: 0x%016llx\n", pc, val2);
-			print_instruction_window_around(pc, 1, "error");
-			print_error("invalid jump address", val2, pc, 2);
-		}
-
-		if (op == st and val0 >= max_memory_size) {
-			printf("error: at pc %llu invalid address given to "
-				"store to compiletime memory: 0x%016llx\n", 
-				pc, val0
-			);
-			print_instruction_window_around(pc, 1, "error");
-			print_error("invalid store address", val2, pc, 2);
-		}
-
-		if (op == ld and val1 >= max_memory_size) {
-			printf("error: at pc %llu invalid address given to "
-				"load from compiletime memory: 0x%016llx\n", 
-				pc, val1
-			);
-			print_instruction_window_around(pc, 1, "error");
-			print_error("invalid memory address", val2, pc, 2);
-		}
+		if ((op == lt or op == eq) and val2 >= ins_count)
+			print_error("invalid jump address", val2, pc, 3);
+		if (op == st and val0 >= max_memory_size)
+			print_error("invalid store address", val0, pc, 1);
+		if (op == ld and val1 >= max_memory_size) 
+			print_error("invalid memory address", val1, pc, 2);
 	
 		if (op == str) {
-			for (nat s = 0; s < arg0; s++) {
-				in[0] = emit | (3LLU << 32LLU);
-				in[1] = 1;
-				in[2] = (nat) strings[arg1][s];
-				generate_machine_instruction(in, pc);
-			}
-
+			if (pass == 1) insert_bytes(strings[arg1], arg0); else output_count += arg0;
 		} else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
 			in[0] = op | (0xffffLLU << 32LLU);
 			for (nat a = 0; a < arity[op]; a++) {
 				const nat arg = ins[pc + a + 1];
 				in[a + 1] = (imm >> a) & 1 ? arg : values[arg];
 			}
-			generate_machine_instruction(in, pc);
+			if (pass == 1) generate_machine_instruction(in, pc);
+			else output_count += get_length(in);
 		}
 		else if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0] += 1;
@@ -1418,7 +1353,6 @@ process_file:;
 			); 
 			print_error("invalid CTE operation executed", op, pc, 0);
 		}
-
 		if (op == st and val0 == assembler_putc) { char c = (char) val1; write(1, &c, 1); } 
 	}
 
@@ -1429,7 +1363,7 @@ process_file:;
 
 	if (not ins_count) exit(0);
 	if (format == macho_executable and stack_size < min_stack_size) {
-		puts("warning: stack size less than minimum for format macho_executable, overwriting");
+		puts("\033[35mwarning:\033[0m stack size less than minimum for format macho_executable, overwriting");
 		stack_size = min_stack_size;
 	}
 	if (format == uf2_executable) output_filename = "output_from_assembler.uf2";
@@ -1438,11 +1372,7 @@ process_file:;
 		print_dictionary();
 		print_instructions();
 		puts("CTE finished.");
-		puts("generating final machine code binary...");
-	}
-
-	if (debug) {
-		puts("code generation: done.");
+		puts("also, code generation: done.");
 		puts("final_bytes:");
 		dump_hex(output_bytes, output_count);
 		printf("info: generating output file with format #%llu...\n", format);
@@ -1457,10 +1387,8 @@ process_file:;
 	if (format == macho_object) goto generate_macho_object;	
 	if (format == elf_executable) abort();
 	if (format == elf_object) abort();
-
 	puts("error: unknown output format specified, cannot generate output"); 
 	abort();
-
 
 generate_no_output:
 	if (debug) dump_hex(output_bytes, output_count);
@@ -1938,6 +1866,16 @@ x	assembler printing errors:
 */
 
 
+
+/*for (nat s = 0; s < arg0; s++) {
+				in[0] = emit | (3LLU << 32LLU);
+				in[1] = 1;
+				in[2] = (nat) strings[arg1][s];
+			}*/
+
+
+
+
 /*
 
 
@@ -2032,30 +1970,6 @@ actaully the instructions which we will add will be specically:
 
 
 
-
-
-static nat get_length(nat* in) {
-
-	const nat op = get_op(in[0]);
-	const nat a0 = ins[1];
-	const nat a1 = ins[2];
-	const nat a4 = ins[5];
-	const nat a5 = ins[6];
-
-	nat length = 4;
-	if (op == mo) {
-		length = 2;
-		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
-		if (a1 == 1) length += 2;
-	}
-	else if (op == mb) length = 2;
-	else if (op == sect) length = 0;
-	else if (op == emit) length = a0;
-	else length = 4;
-
-	return length;
-}
-
 static void check_for_errors(nat* in, nat at_pc) {
 
 	const nat op = get_op(ins[pc + 0]);
@@ -2103,7 +2017,17 @@ static void check_for_errors(nat* in, nat at_pc) {
 
 
 
+			/*printf("error: at pc %llu invalid address given to "
+				"load from compiletime memory: 0x%016llx\n", 
+				pc, val1
+			);
+			print_instruction_window_around(pc, 1, "error");*/
 
+/*printf("error: at pc %llu invalid address given to "
+				"store to compiletime memory: 0x%016llx\n", 
+				pc, val0
+			);
+			print_instruction_window_around(pc, 1, "error");*/
 
 
 

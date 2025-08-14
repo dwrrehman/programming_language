@@ -17,15 +17,13 @@ eq 0 0 skip_all_routines
 
 at function_begin
 	ld ra 0
+
 	set arg c0
 
 	ld sp ctstackpointer
 	st sp arg
 	incr sp
-	st ctstackpointer sp 
-
-	del sp
-	del arg
+	st ctstackpointer sp del sp
 
 	eq 0 0 ra del ra
 	lt 0 0 function_begin
@@ -48,7 +46,7 @@ at riscv_uf2
 
 	set target riscv_arch
 	st output_format uf2_executable
-	st overwrite_output true
+	st overwrite_output 1
 
 	function_end
 	eq 0 0 ra del ra lt 0 0 riscv_uf2
@@ -60,22 +58,10 @@ at riscv_hex
 
 	set target riscv_arch
 	st output_format hex_array
-	st overwrite_output true
+	st overwrite_output 1
 
 	function_end
 	eq 0 0 ra del ra lt 0 0 riscv_hex
-
-
-at arm64
-	ld ra 0
-	set c0 ra function_begin
-
-	set target arm64_arch
-	st output_format macho_executable
-	st overwrite_output true
-
-	function_end
-	eq 0 0 ra del ra lt 0 0 arm64
 
 
 at rem
@@ -346,15 +332,11 @@ at getstringlength
 	set c0 ra function_begin
 
 	set begin arg
-	at here
-	set arg here
-	sub arg begin
-	set c0 arg
+	at here set arg here sub arg begin
 	del here del begin
-	
 
 	function_end
-	eq 0 0 ra del ra del arg
+	eq 0 0 ra del ra
 	lt 0 0 getstringlength
 
 

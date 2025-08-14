@@ -3,34 +3,7 @@
 
 file library/core.s
 file library/useful.s
-
-st target arm64_arch
-st format macho_executable
-st overwrite true
-
-
-
-(---------------stdlib code for arm64-----------------)
-
-set mov_type_zero 01
-
-set zero_reg 11111
-set link_reg 01111
-
-set a6_number 00001
-set a6_arg0 0
-set a6_arg1 1
-set a6_arg2 01
-set a6_arg3 11
-
-set a6_exit 1
-set a6_fork 01
-set a6_read 11
-set a6_write 001
-
-(--------------------------------)
-
-
+arm64
 
 mov a6_number a6_write 0 mov_type_zero 1
 mov a6_arg0 stdout 0 mov_type_zero 1
@@ -60,9 +33,7 @@ eoi
 
 
 
-
-
-
+updated this program to use the stdlib better, on 1202508133.184303
 
 
 
@@ -85,3 +56,22 @@ rewritten to use the new syntax and stdlib for the language!
 
 
 
+(---------------stdlib code for arm64-----------------)
+
+set mov_type_zero 01
+
+set zero_reg 11111
+set link_reg 01111
+
+set a6_number 00001
+set a6_arg0 0
+set a6_arg1 1
+set a6_arg2 01
+set a6_arg3 11
+
+set a6_exit 1
+set a6_fork 01
+set a6_read 11
+set a6_write 001
+
+(--------------------------------)
