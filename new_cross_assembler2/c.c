@@ -4,7 +4,6 @@
 // rewritten on 1202508133.024130 by dwrr
 // finished errors on 1202508133.185450 
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +37,6 @@ static nat debug = 0;
 #define min_stack_size		(16384 + 1)
 
 enum all_architectures { riscv_arch, arm64_arch, msp430_arch };
-
 enum all_output_formats {
 	no_output,
 	bin_output,
@@ -63,26 +61,26 @@ enum memory_mapped_addresses {
 };
 
 enum isa {
-	zero, incr, 
-	set, add, sub, mul, div_, 
-	and_, or_, eor, si, sd, 
-	ld, st, lt, eq, at, emit, sect, 
-	file, del, str, eoi, 
+	zero, incr,
+	set, add, sub, mul, div_, rem,
+	and_, or_, eor, si, sd,
+	ld, st, lt, eq, at, emit, sect,
+	file, del, str, eoi,
 	rr, ri, rs, rb, ru, rj,
 	mo, mb,
 	nop, svc, mov, bfm,
-	adc, addx, addi, addr, adr, 
-	shv, clz, rev, jmp, bc, br, 
-	cbz, tbz, ccmp, csel, 
-	ori, orr, extr, ldrl, 
-	memp, memia, memi, memr, 
-	madd, divr, 
+	adc, addx, addi, addr, adr,
+	shv, clz, rev, jmp, bc, br,
+	cbz, tbz, ccmp, csel,
+	ori, orr, extr, ldrl,
+	memp, memia, memi, memr,
+	madd, divr,
 	isa_count
 };
 
 static const char* operations[isa_count] = {
 	"zero", "incr", 
-	"set", "add", "sub", "mul", "div", 
+	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", 
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi",
@@ -99,7 +97,7 @@ static const char* operations[isa_count] = {
 
 static const nat arity[isa_count] = {
 	1, 1, 
-	2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2,
 	2, 2, 2, 2, 2, 
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
@@ -468,12 +466,15 @@ static void print_instruction(nat* in) {
 				"%.*s\033[38;5;235m(%llu)\033[0m", 
 				(int) variable_length[arg], variables[arg], arg
 			);
-		else 
+		else {
 			snprintf(
 				string, sizeof string, 
 				"(INTERNAL ERROR)(%llu)", 
 				arg
 			);
+			printf("%s   --->aborting\n", string);
+			abort();
+		}
 		printf("%s ", string);
 	}
 }
@@ -486,7 +487,6 @@ static void print_instructions(void) {
 		puts("");
 	}
 }
-
 
 static void print_instruction_window_around(
 	nat this,
@@ -600,8 +600,6 @@ static void print_disassembly(const nat arch) {
 		system(string);
 	}
 }
-
-
 
 static void generate_machine_instruction(nat* in, nat pc) {
 
@@ -762,7 +760,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a1 <<  7U) |
 				(a0 <<  0U) ;
 			insert_u32((u32) word);
-
 
 
 
@@ -1018,8 +1015,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 
-
-
 		} else if (op == memr) { 
 			const nat S = (a4 >> 2) & 1, option = a4 & 3;
 			nat opt = 0;
@@ -1044,7 +1039,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
 				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
 			insert_u32((u32) word);
-
 
 		} else {
 			printf("code generation error: unknown machine instruction \"%s\"\n", operations[op]);
@@ -1079,7 +1073,6 @@ int main(int argc, const char** argv) {
 	{ nat index_stack[max_file_count] = {0};
 	nat file_stack[max_file_count] = {0};
 	nat stack_count = 1;
-
 	nat included_filepaths[max_file_count] = {0};
 	nat included_count = 0;
 
@@ -1112,7 +1105,6 @@ process_file:;
 		} else if (not length) continue; 
 
 		const char* word = text + start;
-
 		nat op = args[0];
 
 		if (not arg_count) {
@@ -1322,6 +1314,7 @@ process_file:;
 		else if (op == sub)  values[arg0] -= val1;
 		else if (op == mul)  values[arg0] *= val1;
 		else if (op == div_) values[arg0] /= val1;
+		else if (op == rem)  values[arg0] %= val1;
 		else if (op == and_) values[arg0] &= val1;
 		else if (op == or_)  values[arg0] |= val1;
 		else if (op == eor)  values[arg0] ^= val1;

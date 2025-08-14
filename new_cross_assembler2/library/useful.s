@@ -13,8 +13,6 @@ zero c6 zero c7
 eq 0 0 skip_all_routines
 
 
-
-
 at function_begin
 	ld ra 0
 	set arg c0
@@ -77,30 +75,29 @@ at arm64
 
 	st executable_stack_size min_stack_size_macos
 
-
 	function_end
 	eq 0 0 ra del ra lt 0 0 arm64
 
 
-at rem
-	ld ra 0
-	set n c0 
-	set m c1
-	set c0 ra function_begin
-	
-	set d n div d m
-	set r d mul r m set k n sub k r
-	set c0 k
-	del k del r del n del m del d
-
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 rem
 
 at ctabort
 	ld ra 0
 	set c0 ra function_begin
 	eq 0 0 -1 lt 0 0 ctabort
+
+
+at ctputchar
+	ld ra 0
+	set c c0
+	set c0 ra function_begin
+	ld p assembler_pass
+	eq p 0 skip
+		st assembler_putc c
+	at skip del skip
+	del p del c
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 ctputchar
 
 at ctprintbinary
 	ld ra 0
@@ -108,38 +105,27 @@ at ctprintbinary
 	set c0 ra function_begin
 
 	at loop
-		set bit n 
-		set c0 bit set c1 01 rem set bit c0 
+		set bit n
+		and bit 1
 		add bit '0'
-		st assembler_putc bit del bit
-		div n 01
+		set c0 bit ctputchar 
+		sd n 1
 		lt 0 n loop  
-	del loop del n
+
+	del loop del n del bit
+
 	function_end
-	eq 0 0 ra del ra lt 0 0 ctprintbinary
+	eq 0 0 ra del ra
+	lt 0 0 ctprintbinary
 
 
 
 at ctnl 
 	ld ra 0
 	set c0 ra function_begin
-	st assembler_putc newline 
+	set c0 newline ctputchar
 	function_end
 	eq 0 0 ra del ra lt 0 0 ctnl
-
-
-at not 
-	ld ra 0
-	set n c0
-	set c0 ra function_begin
-
-	set r -1 sub r n
-	set c0 r del r
-
-	function_end
-	del n
-	eq 0 0 ra del ra 
-	lt 0 0 not
 
 
 at la
@@ -505,6 +491,35 @@ rewritten and made more portable on 1202508037.203119
 
 
 
+
+
+(at not 
+	ld ra 0
+	set n c0
+	set c0 ra function_begin
+
+	set r -1 sub r n
+	set c0 r del r
+
+	function_end
+	del n
+	eq 0 0 ra del ra 
+	lt 0 0 not)
+
+(at rem
+	ld ra 0
+	set n c0 
+	set m c1
+	set c0 ra function_begin
+	
+	set d n div d m
+	set r d mul r m set k n sub k r
+	set c0 k
+	del k del r del n del m del d
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 rem)
 
 
 
