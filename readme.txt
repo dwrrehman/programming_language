@@ -4,7 +4,7 @@ written on 1202507196.013059 by dwrr
 
 this is a cross-assembler that i am making for fun and for my own use. the instruction set architectures (ISA's) which this assembler is able to target currently includes RISC-V 32-bit and 64-bit (RV32IM/RV64IM), ARM 64-bit (Aarch64), and the MSP430 ISA. supporting ARM 32-bit is planned, however not currently implemented. this assembler supports the output file formats: Mach-O executables, Macho-O object files, UF2 files, hex array files, and TI TXT files. supporting ELF executables, and ELF object files is planned, however not currently implemented. 
 
-in addition to the machine instructions for all supported targets, this assembler features a powerful turing-complete compile-time execution system. there are 18 compile-time instructions available for use to perform arbitrary transformations on the output machine code programmatically. they allow for many optimizations to be written at user-level, and the construction of macros at user-level. all of these compile-time instructions take 0, 1, 2, or 3 arguments, and have a simple interface and semantics.
+in addition to the machine instructions for all supported targets, this assembler features a powerful turing-complete compile-time execution system. there are 24 compile-time instructions available for use to perform arbitrary transformations on the output machine code programmatically. they allow for many optimizations to be written at user-level, and the construction of macros at user-level. all of these compile-time instructions take 0, 1, 2, or 3 arguments, and have a simple interface and semantics.
 
 all instructions (both compile-time and machine instructions) are written in a whitespace-delimited, word-based, prefix, fixed-arity, syntax using only alphanumeric characters-- somewhat atypical of most assemblers. whitespace is completely ignored, except for the purposes of separating neighboring words: at least one space (ASCII byte 32), newline (ASCII byte 10) or tab (ASCII byte 9) character must be present between two words for them to be considered different words. (the only exception to this is strings, see the "str" instruction description/semantics below.) finally, there is no delimiter between neighboring instructions except for at least one whitespace character that is neccessary to delimit the neighboring words.
 
@@ -81,7 +81,9 @@ note, this section is still very much a work in progress, several instructions a
 
 instruction listing:
 
-	zero incr set add sub mul div
+	zero incr set 
+	add sub mul div rem 
+	and or eor si sd
 	ld st emit sect at lt eq 
 	file del str eoi 
 
@@ -111,6 +113,12 @@ compiletime:
 	sub  : subtraction
 	mul  : multiplication
 	div  : division
+	rem  : remainder
+	and  : bitwise and
+	or   : bitwise or
+	eor  : bitwise exclusive or
+	si   : shift increase
+	sd   : shift decease
 	ld   : load from compiletime memory
 	st   : store to compiletime memory
 	emit : emit data to executable
@@ -271,6 +279,54 @@ compiletime system:
 	always executes at compiletime.
 
 
+---------------------------------------------------------
+	rem x.64 y.64
+---------------------------------------------------------
+	assigns the value x modulo y to the destination 
+	variable x. 
+	always executes at compiletime.
+
+
+---------------------------------------------------------
+	and x.64 y.64
+---------------------------------------------------------
+	assigns the value x bitwise-and y to the destination 
+	variable x. 
+	always executes at compiletime.
+
+
+---------------------------------------------------------
+	or x.64 y.64
+---------------------------------------------------------
+	assigns the value x bitwise-or y to the destination 
+	variable x. 
+	always executes at compiletime.
+
+
+---------------------------------------------------------
+	eor x.64 y.64
+---------------------------------------------------------
+	assigns the value x bitwise-exclusive-or y to the destination 
+	variable x. 
+	always executes at compiletime.
+
+
+---------------------------------------------------------
+	si x.64 y.64
+---------------------------------------------------------
+	assigns the value x shifted up by y bits to the destination 
+	variable x. a shift by 1 bit (where y is 1) is equivalent 
+	to multiplying x by 2 and assigning this result to x.
+	always executes at compiletime.
+
+
+---------------------------------------------------------
+	sd x.64 y.64
+---------------------------------------------------------
+	assigns the value x shifted down by y bits to the destination 
+	variable x. a shift by 1 bit (where y is 1) is equivalent 
+	to dividing x by 2 and assigning this result to x.
+	always executes at compiletime.
 
 ---------------------------------------------------------
 	ld destination.64 address.64
@@ -493,7 +549,6 @@ risc-v:
 
 
 
-
 ---------------------------------------------------------
 msp430:
 ---------------------------------------------------------
@@ -523,16 +578,21 @@ msp430:
 arm64:
 ---------------------------------------------------------
 
+---------------------------------------------------------
+	nop
+---------------------------------------------------------
+	runtime no-operation instruction.
+	does nothing.
 
 ---------------------------------------------------------
-	a6_svc
+	svc
 ---------------------------------------------------------
-	runtime system call instruction. 
+	runtime system call instruction.
 
 
 ---------------------------------------------------------
-	a6_mov  Rd.5  imm.16  shift_amount.2  
-		mov_type.2  is_64bit.1
+	mov  Rd.5  imm.16  shift_amount.2  
+		mov_type.2
 ---------------------------------------------------------
 	register immediate load.
 
@@ -558,23 +618,24 @@ arm64:
 
 
 ---------------------------------------------------------
-	a6_adc   Rd.5  Rn.5  Rm.5  should_setflags.1  
-		should_subtract.1   is_64bit.1 : 
+	adc   Rd.5  Rn.5  Rm.5  should_setflags.1  
+		should_subtract.1
 ---------------------------------------------------------
 	add two source registers with carry flag, 
 		and store into destination register.
 
 
 ---------------------------------------------------------
-	a6_adr  Rd.5 label.21  is_page_addressed.1 :
+	adr  Rd.5 label.21  is_page_addressed.1 
 ---------------------------------------------------------
 	load pc-rel address into register
 
+
 		
 ---------------------------------------------------------
-	a6_addi   Rd.5  Rn.5  imm.12  
+	addi   Rd.5  Rn.5  imm.12  
 		should_imm_shift12.1  should_setflags.1  
-		should_subtract.1  is_64bit.1 : 
+		should_subtract.1
 ---------------------------------------------------------
 	add source register with immediate and 
 	store into destination register. 
@@ -584,9 +645,9 @@ arm64:
 
 
 ---------------------------------------------------------
-	a6_addr    Rd.5  Rn.5  Rm.5  imm.6   
+	addr    Rd.5  Rn.5  Rm.5  imm.6   
 		shift_type.2  should_setflags.1  
-		should_subtract.1  is_64bit.1 
+		should_subtract.1
 ---------------------------------------------------------
 	add source register with optionally 
 	immediate-amount-shifted source register and 
@@ -599,13 +660,25 @@ arm64:
 
 
 ---------------------------------------------------------
-	a6_jmp   should_link.1   label.26   
+	br register.5 type.1
 ---------------------------------------------------------
-	unconditional branch to a 
-	pc-relative-offset label. 
+	type can be 0, 1 or 2. 
+	type == 2 means a return hint,
+	type == 1 means it will link with x30 
+	type == 0 means just an indirect register branch.
+
+
 
 ---------------------------------------------------------
-	a6_bc    cond.4   label.19  
+	jmp   should_link.1   label.26
+---------------------------------------------------------
+	unconditional branch to a pc-relative-offset 
+	label. 
+
+
+
+---------------------------------------------------------
+	bc    cond.4   label.19  
 ---------------------------------------------------------
 
 	conditional branch based on the condition 
@@ -634,89 +707,203 @@ arm64:
 
 
 ---------------------------------------------------------
-	a6_shv  	... : not documented yet
+	shv   dest.5  source.5  shift_amount.5  type.2
 ---------------------------------------------------------
+	dest, source, and shift_amount are all registers.
+
+	type == 0 means	shift left logically
+	type == 1 means	shift right logically
+	type == 2 means	shift right arithmetically
+	type == 3 means	rotate right
 
 
 ---------------------------------------------------------
-	a6_cbz  	... : not documented yet
+	cbz   source.5  label.23  ifnonzero.1
 ---------------------------------------------------------
+	if ifnonzero is 1, it performs a 
+	branch-nonzero on source to label.
+	if ifnonzero is 0, it performs a 
+	branch-ifzero on source to label.
+
 
 ---------------------------------------------------------
-	a6_tbz  	... : not documented yet
+	tbz  source.5  bitindex.6  label.23  ifnonzero.1
 ---------------------------------------------------------
+	checks if the bitindex-th bit is set or not.
+	if ifnonzero is 1, then it branches if that bit is 
+	1. if ifnonzero is 0, then it branches if that
+	bit is 0.
+
+
 
 
 ---------------------------------------------------------
-	a6_ori  	... : not documented yet
+	madd  	... : not documented yet
 ---------------------------------------------------------
 
----------------------------------------------------------
-	a6_orr  	... : not documented yet
----------------------------------------------------------
 
+
+
+
+---------------------------------------------------------
+	divr  destination.5  source1.5  
+		source2.5  issigned.1
+---------------------------------------------------------
+	performs register division of source1 / source2,
+	and stores result into destination.
+	if issigned is 1, the division is a signed division.
+	else, it is an unsigned division.
+
+
+---------------------------------------------------------
+	orr op.2 destination.5 source1.5 negate.1 
+		source2.5 shift_type.2 shift_amount.6
+---------------------------------------------------------
+	if op is 0, this performs an and, 
+	if op is 1, this performs an or,
+	if op is 2, this performs an xor,
+	if op is 3, this peforms an and, 
+		while setting the flags.
+
+	first, an optionally shifted version of the 
+	source2 reg is constructed, called k. 
+	source2 is not edited. 
+
+	the shift type follows addi's shift type encoding.
+
+	then, this value is optionally bitwise negated.
+	if negate is 1, then k is inverted in place.
+	else, k is unaffected, and passes on as is.
+	
+	finally, the source1 and k are combined
+	using the bitwise operation seleted by op, 
+	and this value is written to destination.
+	
 		
 
 ---------------------------------------------------------
-	a6_memia  	... : not documented yet
+	memia  op.2  size.2  data.5  
+		address.5  immediate.9  preincr.1
+---------------------------------------------------------
+	op == 0 means store
+	op == 1 means unsigned load
+	op == 2 means signed load
+	op == 3 is invalid, and should not be used.
+
+	size == 0 means 8bit load/store
+	size == 1 means 16bit load/store
+	size == 2 means 32bit load/store
+	size == 3 means 64bit load/store
+
+	if size is 3, op can only be 0 or 1.
+
+	first, 9-bit immediate is sign-extended to 64 bits.
+
+	the address register value is added with 
+	this sign extended immediate, to form the 
+	address, called A.
+	
+	if preincr is 1, then the address register is modified
+	at this point by adding this sign extended immediate to it.
+	if this happens, A is then set to the resultant 
+	modified value of the address register.
+	
+	for a load, 2 to the size number of bytes 
+	are then loaded from memory at A,
+	and then stored into the data register.
+	if a signed load, then the resultant data is sign extended to 64 bits.
+
+	however, for a store, 2 to the size number of
+	bytes are read from the data register,
+	and stored to memory starting at A.
+
+	following the load/store's completion, 
+	if preincr is 0, then the address register 
+	is modified by adding the sign extended immediate to it.
+
+---------------------------------------------------------
+	memi  op.2  size.2  data.5  
+		address.5  immediate.12
+---------------------------------------------------------
+	op == 0 means store
+	op == 1 means unsigned load
+	op == 2 means signed load
+	op == 3 is invalid, and should not be used.
+
+	size == 0 means 8bit load/store
+	size == 1 means 16bit load/store
+	size == 2 means 32bit load/store
+	size == 3 means 64bit load/store
+
+	if size is 3, op can only be 0 or 1.
+
+	first, the immediate is shifted up by size 
+	number of bits.
+
+	the address register value is added with 
+	this shifted version of the zero extended 12-bit immediate. 
+	this forms the address, called A.
+
+	for a load, 2 to the size number of bytes 
+	are then loaded from memory at A,
+	and then stored into the data register.
+	if a signed load, then the resultant data is sign extended to 64 bits.
+
+	however, for a store, 2 to the size number of
+	bytes are read from the data register,
+	and stored to memory starting at A.
+
+
+
+
+
+
+---------------------------------------------------------
+	memr  	... : not documented yet
 ---------------------------------------------------------
 
 ---------------------------------------------------------
-	a6_memi  	... : not documented yet
----------------------------------------------------------
-
----------------------------------------------------------
-	a6_memr  	... : not documented yet
+	memp  	... : not documented yet
 ---------------------------------------------------------
 
 
 
----------------------------------------------------------
-	a6_memp  	... : not documented yet
----------------------------------------------------------
-
----------------------------------------------------------
-	a6_madd  	... : not documented yet
----------------------------------------------------------
-
----------------------------------------------------------
-	a6_divr  	... : not documented yet
----------------------------------------------------------
-
 
 
 ---------------------------------------------------------
-	a6_csel  	... : not documented yet
+	ori  	... : not documented yet
+---------------------------------------------------------
+
+
+---------------------------------------------------------
+	csel  	... : not documented yet
 ---------------------------------------------------------
 
 ---------------------------------------------------------
-	a6_ldrl  	... : not documented yet
+	ldrl  	... : not documented yet
 ---------------------------------------------------------
 
 ---------------------------------------------------------
-	a6_clz  	... : not documented yet
+	clz  	... : not documented yet
 ---------------------------------------------------------
 
 
 i'll do these later:
 
 ---------------------------------------------------------
-	a6_extr  	... : not documented yet
+	extr  	... : not documented yet
 ---------------------------------------------------------
 ---------------------------------------------------------
-	a6_ccmp  	... : not documented yet
+	ccmp  	... : not documented yet
 ---------------------------------------------------------
 ---------------------------------------------------------
-	a6_br  		... : not documented yet
+	rev  	... : not documented yet
 ---------------------------------------------------------
 ---------------------------------------------------------
-	a6_rev  	... : not documented yet
+	addx  	... : not documented yet
 ---------------------------------------------------------
 ---------------------------------------------------------
-	a6_addx  	... : not documented yet
----------------------------------------------------------
----------------------------------------------------------
-	a6_bfm  	... : not documented yet
+	bfm  	... : not documented yet
 ---------------------------------------------------------
 
 
