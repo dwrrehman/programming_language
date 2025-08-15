@@ -804,7 +804,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a4 >= 1LLU << 1LLU) print_error("adc: should subtract bit", a4, pc, 5);
 
 			const nat word =
-				(1  << 31U) |
+				(1LLU << 31U) |
 				(a4 << 30U) |
 				(a3 << 29U) |
 				(0xD0 << 21U) |
@@ -820,7 +820,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a2 >= 1LLU << 5LLU) print_error("shv: 5-bit shift amount register", a2, pc, 3);
 			if (a3 >= 1LLU << 2LLU) print_error("shv: 2-bit shift type", a3, pc, 4);
 			const nat word =
-				(1  << 31U) |
+				(1LLU << 31U) |
 				(0xD6 << 21U) |
 				(a2  << 16U) |
 				((8 | a3) << 10U) |
@@ -835,7 +835,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a2 >= (1LLU <<  2LLU)) print_error("mov: 2-bit shift amount", a2, pc, 3);
 			if (a3 >= (1LLU <<  2LLU)) print_error("mov: 2-bit move type", a3, pc, 4);
 			const nat word = 
-				(1 << 31U) | 
+				(1LLU << 31U) | 
 				(a3 << 29U) | 
 				(0x25U << 23U) |
 				(a2 << 21U) | 
@@ -883,7 +883,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 			const nat offset = 0x7ffff & ((a1 - output_count) >> 2LLU);
 			const nat word = 
-				(1 << 31U) | (0x1AU << 25U) | 
+				(1LLU << 31U) | (0x1AU << 25U) | 
 				(a2 << 24U) | (offset << 5U) | (a0);
 			insert_u32((u32) word);
 
@@ -905,7 +905,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 		} else if (op == ccmp) {
 			const nat word = 
-				(1 << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
+				(1LLU << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
 				(a3 << 16U) | (a0 << 12U) | (a2 << 11U) | 
 				(a1 << 5U) | (a5); 
 			insert_u32((u32) word);
@@ -919,7 +919,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a1 >= (1LLU <<  5LLU)) print_error("addi: source register", a1, pc, 2);
 			if (a0 >= (1LLU <<  5LLU)) print_error("addi: destination register", a0, pc, 1);
 			const nat word = 
-				(1 << 31U) | (a5 << 30U) | (a4 << 29U) | 
+				(1LLU << 31U) | (a5 << 30U) | (a4 << 29U) | 
 				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
 				(a1 << 5U) | (a0);
 			insert_u32((u32) word);
@@ -933,14 +933,14 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a1 >= (1LLU << 5LLU)) print_error("addr: source1 register", a1, pc, 2);
 			if (a0 >= (1LLU << 5LLU)) print_error("addr: destination register", a0, pc, 1);
 			const nat word = 
-				(1 << 31U) | (a6 << 30U) | (a5 << 29U) | 
+				(1LLU << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
 				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
 
 		} else if (op == addx) {
 			const nat word = 
-				(1 << 31U) | (a6 << 30U) | (a5 << 29U) | 
+				(1LLU << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
 				(a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
@@ -951,14 +951,14 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a1 >= (1LLU << 5LLU)) print_error("divr: source1 register", a1, pc, 2);
 			if (a0 >= (1LLU << 5LLU)) print_error("divr: destination register", a0, pc, 1);
 			const nat word = 
-				(1 << 31U) | (0xD6 << 21U) | (a2 << 16U) |
-				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
+				(1LLU << 31U) | (0xD6 << 21U) | (a2 << 16U) |
+				(1LLU << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
 
 
 		} else if (op == csel) {
 			const nat word = 
-				(1 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
+				(1LLU << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
 				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
 
@@ -976,7 +976,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (not a2) { imms = a3 + a4 - 1; immr = a3; } 
 			else { imms = a4 - 1; immr = 64 - a3; }
 			const nat word =
-				(1 << 31U) |
+				(1LLU << 31U) |
 				(a5 << 29U) |
 				(0x26U << 23U) | 
 				(a6 << 22U) | 
@@ -1006,7 +1006,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a5 >= (1LLU << 2LLU)) print_error("orr: shift type", a5, pc, 6);
 			if (a6 >= (1LLU << 6LLU)) print_error("orr: shift amount", a6, pc, 7);
 			const nat word = 
-				(1  << 31U) | 
+				(1LLU << 31U) | 
 				(a0 << 29U) | 
 				(10 << 24U) | 
 				(a5 << 22U) | 
@@ -1026,14 +1026,14 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a5 >= (1LLU << 7LLU)) print_error("memp: 7-bit immediate offset", a5, pc, 6);
 			if (a6 >= (1LLU << 2LLU)) print_error("memp: 2-bit addressing mode", a6, pc, 7);
 			const nat word = 
-				(a1 << 30U) | 
-				(0x14 << 25U) | 
-				(a6 << 23U) |
-				(a0 << 22U) |
-				(a5 << 15U) |
-				(a3 << 10U) |
-				(a4 << 5U) |
-				(a2 << 0U);
+				(a1 << 30LLU) | 
+				(0x14 << 25LLU) | 
+				(a6 << 23LLU) |
+				(a0 << 22LLU) |
+				(a5 << 15LLU) |
+				(a3 << 10LLU) |
+				(a4 << 5LLU) |
+				(a2 << 0LLU);
 
 			insert_u32((u32) word);
 
@@ -1044,12 +1044,12 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a3 >= (1LLU << 5LLU)) print_error("memi: address register", a3, pc, 4);
 			if (a4 >= (1LLU << 12LLU)) print_error("memi: 12-bit immediate", a4, pc, 5);
 			const nat word = 
-				(a1 << 30U) | 
-				(0x39 << 24U) | 
-				(a0 << 22U) |
-				(a4 << 10U) | 
-				(a3 <<  5U) | 
-				(a2 << 0U);
+				(a1 << 30LLU) | 
+				(0x39 << 24LLU) | 
+				(a0 << 22LLU) |
+				(a4 << 10LLU) | 
+				(a3 <<  5LLU) | 
+				(a2 << 0LLU);
 			insert_u32((u32) word);
 
 		} else if (op == memia) { 
@@ -1060,14 +1060,14 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a4 >= (1LLU << 12LLU)) print_error("memi: 12-bit immediate", a4, pc, 5);
 			if (a5 >= (1LLU << 1LLU)) print_error("memi: postincr or preincr", a5, pc, 6);
 			const nat word = 
-				(a1 << 30U) | 
-				(0x38 << 24U) | 
-				(a0 << 22U) | 
-				(a4 << 12U) | 
-				(a5 << 11U) | 
-				(1 << 10U) | 
-				(a3 << 5U) | 
-				(a2 << 0U);
+				(a1 << 30LLU) | 
+				(0x38 << 24LLU) | 
+				(a0 << 22LLU) | 
+				(a4 << 12LLU) | 
+				(a5 << 11LLU) | 
+				(1 << 10LLU) | 
+				(a3 << 5LLU) | 
+				(a2 << 0LLU);
 			insert_u32((u32) word);
 
 		} else if (op == memr) {
@@ -1078,16 +1078,16 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a4 >= (1LLU << 5LLU)) print_error("memr: offset register", a4, pc, 5);
 			if (a5 >= (1LLU << 1LLU)) print_error("memr: should scale bit", a5, pc, 6);
 			const nat word = 
-				(a1 << 30U) | 
-				(0x38 << 24U) | 
-				(a0 << 22U) |
-				(1  << 21U) | 
-				(a4 << 16U) | 
-				(3  << 13U) |
-				(a5 << 12U) |
-				(2  << 10U) |
-				(a3 << 5U) |
-				(a2 << 0U);
+				(a1 << 30LLU) | 
+				(0x38LLU << 24LLU) | 
+				(a0 << 22LLU) |
+				(1LLU << 21LLU) | 
+				(a4 << 16LLU) | 
+				(3  << 13LLU) |
+				(a5 << 12LLU) |
+				(2  << 10LLU) |
+				(a3 << 5LLU) |
+				(a2 << 0LLU);
 			insert_u32((u32) word);
 		} else print_error("code generation: invalid machine instruction op code", op, pc, 0);
 }

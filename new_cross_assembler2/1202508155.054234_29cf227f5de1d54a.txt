@@ -1,0 +1,159 @@
+copy of the program
+
+1202508155.054241
+
+
+(a program to output spi via sio only)
+
+file library/core.s
+file library/useful.s
+file library/rp2350.s
+
+eq 0 0 skipmacros
+
+at delay
+	ld ra 0
+	set duration c0
+	set i c1
+	set c0 ra function_begin
+	set c0 i set c1 duration li
+	at l
+		set c0 i decrement
+		rb r_branch r_bne i 0 l
+	del l del i
+	del duration
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 delay	
+
+at skipmacros del skipmacros
+
+
+set data 	01
+set address 	001
+
+rp2350
+sect flash_start
+start_rp2350_binary
+
+set c0 address set c1 reset_base
+set c0 data set c1 1111_1101_1011_1111____1111_1111_1111_1111 li
+rs r_store r_sw address data 0
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div
+
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio1_ctrl
+rs r_store r_sw address data io_gpio2_ctrl
+rs r_store r_sw address data io_gpio3_ctrl
+rs r_store r_sw address data io_gpio4_ctrl
+rs r_store r_sw address data io_gpio23_ctrl
+
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 0100_111 li
+rs r_store r_sw address data pads_gpio1
+rs r_store r_sw address data pads_gpio2
+rs r_store r_sw address data pads_gpio3
+rs r_store r_sw address data pads_gpio4
+rs r_store r_sw address data pads_gpio23
+
+(set c0 data set c1 0100_0010_0 li
+rs r_store r_sw address data pads_gpio0)
+
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0111_1000_0000_0000___0000_0001_0000_0000 li
+rs r_store r_sw address data sio_gpio_oe
+rs r_store r_sw address 0 sio_gpio_out
+
+
+(gpio pins : spi functions:
+
+	0 is RX input
+	1 is TX output
+	2 is clock output
+	3 is chipselect
+
+	4 is alternate chip select (or something else)
+
+)
+
+
+set i 0001
+set t 1001
+set send 0101
+
+set duration 0000_001
+
+set c0 i set c1 001 li
+
+at loop
+	set c0 data set c1 1111_1 li
+	rs r_store r_sw address data sio_gpio_out
+	set c0 duration set c1 t delay
+	rs r_store r_sw address 0 sio_gpio_out
+	set c0 duration set c1 t delay
+	set c0 i decrement
+	rb r_branch r_bne i 0 loop 
+	del loop
+
+
+set c0 send set c1 0011_1001_0011_1001 li
+
+set c0 data set c1 0001 li
+rs r_store r_sw address data sio_gpio_out
+
+set c0 0000_01 set c1 t delay
+
+set c0 data set c1 0000 li
+rs r_store r_sw address data sio_gpio_out
+
+set c0 0000_01 set c1 t delay
+
+set c0 i set c1 0000_1 li
+at loop
+	ri r_imm r_and t send 1
+	ri r_imm r_sll data t 1
+	rs r_store r_sw address data sio_gpio_out
+
+	set c0 duration set c1 t delay
+
+	ri r_imm r_xor data data 001
+	rs r_store r_sw address data sio_gpio_out
+
+	set c0 duration set c1 t delay
+
+	ri r_imm r_xor data data 001
+	rs r_store r_sw address data sio_gpio_out
+
+	ri r_imm r_srl send send 1
+	set c0 i decrement
+	rb r_branch r_bne i 0 loop
+	del loop
+
+set c0 0000_1 set c1 t delay
+
+set c0 data set c1 0001 li
+rs r_store r_sw address data sio_gpio_out
+
+
+at mainloop
+
+rj r_jal 0 mainloop
+
+
+
+eoi
+
+
+
+
+
+

@@ -4,74 +4,28 @@ file library/core.s
 file library/useful.s
 file library/rp2350.s
 
-set data 01
-set address 001
-set i 0001
-set t 1001
-set send 0101
-
-set duration 0000_1
-
-
-
 eq 0 0 skipmacros
 
 at delay
 	ld ra 0
-	set time c0
-	set local_i c1
+	set duration c0
+	set i c1
 	set c0 ra function_begin
-	set c0 local_i set c1 time li
+	set c0 i set c1 duration li
 	at l
-		set c0 local_i decrement
-		rb r_branch r_bne local_i 0 l
-	del l del local_i del time
+		set c0 i decrement
+		rb r_branch r_bne i 0 l
+	del l del i
+	del duration
 	function_end
 	eq 0 0 ra del ra
 	lt 0 0 delay	
 
-
-at transmit
-	ld ra 0
-	set c0 ra function_begin
-	
-	set c0 i set c1 0001_1 li
-
-	at loop
-		ri r_imm r_and t send 1
-		ri r_imm r_sll data t 1
-		rs r_store r_sw address data sio_gpio_out
-	
-		set c0 duration set c1 t delay
-	
-		ri r_imm r_xor data data 001
-		rs r_store r_sw address data sio_gpio_out
-	
-		set c0 duration set c1 t delay
-	
-		ri r_imm r_xor data data 001
-		rs r_store r_sw address data sio_gpio_out
-	
-		set c0 duration set c1 t delay
-	
-		ri r_imm r_srl send send 1
-		set c0 i decrement
-		rb r_branch r_bne i 0 loop
-		del loop
-
-
-	set c0 0000_1 set c1 t delay
-	
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 transmit
-
-
-	(set c0 data set c1 0001 li
-	rs r_store r_sw address data sio_gpio_out)
-
 at skipmacros del skipmacros
 
+
+set data 	01
+set address 	001
 
 rp2350
 sect flash_start
@@ -106,6 +60,7 @@ rs r_store r_sw address data pads_gpio3
 rs r_store r_sw address data pads_gpio23
 
 
+
 set c0 data set c1 0100_001 li
 rs r_store r_sw address data pads_gpio4
 
@@ -116,35 +71,73 @@ rs r_store r_sw address data sio_gpio_oe
 rs r_store r_sw address 0 sio_gpio_out
 
 
+set i 0001
+set t 1001
+set send 0101
 
-set c0 data set c1 0001 li
-rs r_store r_sw address data sio_gpio_out	
-set c0 duration set c1 t delay
+set duration 0000_01
 
-	
-rs r_store r_sw address 0 sio_gpio_out
-set c0 duration set c1 t delay
 
-set c0 send set c1 0100_0000_0000_0000_0000_0000 li
-transmit
+
+set c0 i set c1 001 li
+
+at loop
+	set c0 data set c1 1111 li
+	rs r_store r_sw address data sio_gpio_out
+
+	set c0 duration set c1 t delay
+
+	rs r_store r_sw address 0 sio_gpio_out
+
+	set c0 duration set c1 t delay
+
+	set c0 i decrement
+	rb r_branch r_bne i 0 loop 
+	del loop
+
+)
+
+
+set c0 send set c1 1111_0000_1111_1111 li
 
 set c0 data set c1 0001 li
 rs r_store r_sw address data sio_gpio_out
+
+set c0 duration set c1 t delay
+
+rs r_store r_sw address 0 sio_gpio_out
+
 set c0 duration set c1 t delay
 
 
+set c0 i set c1 0000_1 li
 
-	
-rs r_store r_sw address 0 sio_gpio_out	
-set c0 duration set c1 t delay
+at loop
+	ri r_imm r_and t send 1
+	ri r_imm r_sll data t 1
+	rs r_store r_sw address data sio_gpio_out
 
-set c0 send set c1 0100_0000_0000_1110_1111_1111 li
-transmit
+	set c0 duration set c1 t delay
+
+	ri r_imm r_xor data data 001
+	rs r_store r_sw address data sio_gpio_out
+
+	set c0 duration set c1 t delay
+
+	ri r_imm r_xor data data 001
+	rs r_store r_sw address data sio_gpio_out
+
+	set c0 duration set c1 t delay
+
+	ri r_imm r_srl send send 1
+	set c0 i decrement
+	rb r_branch r_bne i 0 loop
+	del loop
+
+set c0 0000_1 set c1 t delay
 
 set c0 data set c1 0001 li
-rs r_store r_sw address data sio_gpio_out	
-
-
+rs r_store r_sw address data sio_gpio_out
 
 
 at lll
@@ -161,38 +154,6 @@ at lll
 eoi
 
 working bitbang spi solution wrote on 1202508155.061604 by dwrr
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(set c0 i set c1 001 li
-
-at loop
-	set c0 data set c1 1111 li
-	rs r_store r_sw address data sio_gpio_out
-
-	set c0 duration set c1 t delay
-
-	rs r_store r_sw address 0 sio_gpio_out
-
-	set c0 duration set c1 t delay
-
-	set c0 i decrement
-	rb r_branch r_bne i 0 loop 
-	del loop
-)
-
 
 
 
