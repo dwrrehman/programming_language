@@ -736,15 +736,6 @@ arm64:
 
 
 
-
----------------------------------------------------------
-	madd  	... : not documented yet
----------------------------------------------------------
-
-
-
-
-
 ---------------------------------------------------------
 	divr  destination.5  source1.5  
 		source2.5  issigned.1
@@ -753,6 +744,8 @@ arm64:
 	and stores result into destination.
 	if issigned is 1, the division is a signed division.
 	else, it is an unsigned division.
+
+
 
 
 ---------------------------------------------------------
@@ -781,6 +774,8 @@ arm64:
 	
 		
 
+
+
 ---------------------------------------------------------
 	memia  op.2  size.2  data.5  
 		address.5  immediate.9  preincr.1
@@ -796,6 +791,9 @@ arm64:
 	size == 3 means 64bit load/store
 
 	if size is 3, op can only be 0 or 1.
+
+	address == 31 means the stack pointer, not
+	the zero register.
 
 	first, 9-bit immediate is sign-extended to 64 bits.
 
@@ -821,6 +819,10 @@ arm64:
 	if preincr is 0, then the address register 
 	is modified by adding the sign extended immediate to it.
 
+
+
+
+
 ---------------------------------------------------------
 	memi  op.2  size.2  data.5  
 		address.5  immediate.12
@@ -837,6 +839,9 @@ arm64:
 
 	if size is 3, op can only be 0 or 1.
 
+	address == 31 means the stack pointer, not
+	the zero register.
+
 	first, the immediate is shifted up by size 
 	number of bits.
 
@@ -847,7 +852,8 @@ arm64:
 	for a load, 2 to the size number of bytes 
 	are then loaded from memory at A,
 	and then stored into the data register.
-	if a signed load, then the resultant data is sign extended to 64 bits.
+	if a signed load, then the resultant data 
+	is sign extended to 64 bits.
 
 	however, for a store, 2 to the size number of
 	bytes are read from the data register,
@@ -859,15 +865,82 @@ arm64:
 
 
 ---------------------------------------------------------
-	memr  	... : not documented yet
+	memr  op.2  size.2  data.5  address.5  
+		offset.5  should_scale.1
 ---------------------------------------------------------
+	op == 0 means store
+	op == 1 means unsigned load
+	op == 2 means signed load
+	op == 3 is invalid, and should not be used.
+
+	size == 0 means 8bit load/store
+	size == 1 means 16bit load/store
+	size == 2 means 32bit load/store
+	size == 3 means 64bit load/store
+
+	address == 31 means the stack pointer, not
+	the zero register.
+
+	first, the offset register is shifted by up
+	size bits, if the should_scale bit is 1.
+
+	next, the address A is calculated by adding 
+	the optionally shifted offset register with
+	the address register.
+
+	for a load, 2 to the size number of bytes 
+	are then loaded from memory at A,
+	and then stored into the data register.
+	if a signed load, then the resultant data 
+	is sign extended to 64 bits.
+
+	however, for a store, 2 to the size number of
+	bytes are read from the data register,
+	and stored to memory starting at A.
+
+
 
 ---------------------------------------------------------
-	memp  	... : not documented yet
+	memp   is_load.1 is_64_bit.1  data1.5 data2.5 
+		address.5 immediate.7 mode.2
 ---------------------------------------------------------
+	performs a load-pair if is_load, 
+	else performs a store-pair.
+
+	address == 31 means the stack pointer, not
+	the zero register.
+
+	first, the value k is set to 2 + is_64_bit.
+
+	next, the immediate value is sign extended 
+	to 64 bits.
+
+	next, the immediate is shifted up by
+	k bits. the value A is then constructed 
+	by adding the value in the address register with
+	this shifted immediate.
+
+	if mode == 3, then the value A is stored into
+	the address register, at this point.
+
+	next, if is_load, 2 to the k bytes are loaded 
+	from memory starting from A, and this is stored
+	in data1. 
+
+	then, another 2 to the k bytes are loaded
+	from memory starting at A + (2 to the k), and these
+	bytes are stored into data2. 
+
+	if mode == 1, the value of A is stored into 
+	the address register at this point.
 
 
 
+
+
+---------------------------------------------------------
+	csel  	... : not documented yet
+---------------------------------------------------------
 
 
 ---------------------------------------------------------
@@ -876,8 +949,11 @@ arm64:
 
 
 ---------------------------------------------------------
-	csel  	... : not documented yet
+	madd  	... : not documented yet
 ---------------------------------------------------------
+
+
+
 
 ---------------------------------------------------------
 	ldrl  	... : not documented yet

@@ -748,7 +748,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 
-
 		} else if (op == mb) {
 			//TODO: check arguments to this instruction!
 
@@ -789,8 +788,8 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 		else if (op == br) {
-			if (a1 >= 1LLU << 2LLU) print_error("", a1, pc, 2);
-			if (a0 >= 1LLU << 5LLU) print_error("", a0, pc, 1);
+			if (a1 >= 1LLU << 2LLU) print_error("br: 2-bit indirect branch type", a1, pc, 2);
+			if (a0 >= 1LLU << 5LLU) print_error("br: 5-bit branch register", a0, pc, 1);
 			const nat word = 
 				(0x6BU << 25U) | (a1 << 21U) | 
 				(0x1FU << 16U) | (a0 << 5U);
@@ -798,6 +797,12 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 		} else if (op == adc) {
+			if (a0 >= 1LLU << 5LLU) print_error("adc: 5-bit destination register", a0, pc, 1);
+			if (a1 >= 1LLU << 5LLU) print_error("adc: 5-bit source1 register", a1, pc, 2);
+			if (a2 >= 1LLU << 5LLU) print_error("adc: 5-bit source2 register", a2, pc, 3);
+			if (a3 >= 1LLU << 1LLU) print_error("adc: should set flags bit", a3, pc, 4);
+			if (a4 >= 1LLU << 1LLU) print_error("adc: should subtract bit", a4, pc, 5);
+
 			const nat word =
 				(1  << 31U) |
 				(a4 << 30U) |
@@ -809,12 +814,11 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 
-
 		} else if (op == shv) {
-			if (a0 >= 1LLU << 5LLU) print_error("dest register", a0, pc, 1);
-			if (a1 >= 1LLU << 5LLU) print_error("source register", a1, pc, 2);
-			if (a2 >= 1LLU << 5LLU) print_error("shift amount register", a2, pc, 3);
-			if (a3 >= 1LLU << 2LLU) print_error("shift type", a3, pc, 4);
+			if (a0 >= 1LLU << 5LLU) print_error("shv: 5-bit dest register", a0, pc, 1);
+			if (a1 >= 1LLU << 5LLU) print_error("shv: 5-bit source register", a1, pc, 2);
+			if (a2 >= 1LLU << 5LLU) print_error("shv: 5-bit shift amount register", a2, pc, 3);
+			if (a3 >= 1LLU << 2LLU) print_error("shv: 2-bit shift type", a3, pc, 4);
 			const nat word =
 				(1  << 31U) |
 				(0xD6 << 21U) |
@@ -826,10 +830,10 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 		} else if (op == mov) {
-			if (a0 >= (1LLU <<  5LLU)) print_error("mov: invalid a0 arg", a0, pc, 1);
-			if (a1 >= (1LLU << 16LLU)) print_error("mov: invalid a1 arg", a1, pc, 2);
-			if (a2 >= (1LLU <<  2LLU)) print_error("mov: invalid a2 arg", a2, pc, 3);
-			if (a3 >= (1LLU <<  2LLU)) print_error("mov: invalid a3 arg", a3, pc, 4);
+			if (a0 >= (1LLU <<  5LLU)) print_error("mov: 5-bit destination register", a0, pc, 1);
+			if (a1 >= (1LLU << 16LLU)) print_error("mov: 16-bit immediate", a1, pc, 2);
+			if (a2 >= (1LLU <<  2LLU)) print_error("mov: 2-bit shift amount", a2, pc, 3);
+			if (a3 >= (1LLU <<  2LLU)) print_error("mov: 2-bit move type", a3, pc, 4);
 			const nat word = 
 				(1 << 31U) | 
 				(a3 << 29U) | 
@@ -841,14 +845,17 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 		} else if (op == bc) {
+			if (a0 >= (1LLU << 4LLU)) print_error("bc: 4-bit condition code", a0, pc, 1);
+			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
 			// check the label
-
 			const nat offset = 0x7ffff & ((a1 - output_count) >> 2LLU);
 			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32((u32) word);
 
 
 		} else if (op == jmp) {
+			if (a0 >= (1LLU << 1LLU)) print_error("jmp: should link bit", a0, pc, 1);
+			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
 			// check the label
 			const nat offset = 0x3ffffff & ((a1 - output_count) >> 2LLU);
 			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
@@ -857,7 +864,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 		} else if (op == adr) {			
 			if (a2 >= (1LLU << 1LLU)) print_error("adr: is page bit", a2, pc, 3);
-
+			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
 			nat o1 = a2;
 			nat count = a1 - output_count;
 			if (a2) count /= 4096;
@@ -948,11 +955,13 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
 
+
 		} else if (op == csel) {
 			const nat word = 
 				(1 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
 				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
+
 
 		} else if (op == madd) {
 			const nat word = 
@@ -960,6 +969,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) |
 				(a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
+
 
 		} else if (op == bfm) {
 			nat imms = 0, immr = 0;
@@ -996,19 +1006,39 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a5 >= (1LLU << 2LLU)) print_error("orr: shift type", a5, pc, 6);
 			if (a6 >= (1LLU << 6LLU)) print_error("orr: shift amount", a6, pc, 7);
 			const nat word = 
-				(1 << 31U) | (a0 << 29U) | (10 << 24U) | 
-				(a5 << 22U) | (a3 << 21U) | (a4 << 16U) | 
-				(a6 << 10U) | (a2 << 5U) | (a1);
+				(1  << 31U) | 
+				(a0 << 29U) | 
+				(10 << 24U) | 
+				(a5 << 22U) | 
+				(a3 << 21U) | 
+				(a4 << 16U) | 
+				(a6 << 10U) | 
+				(a2 <<  5U) | 
+				(a1 <<  0U);
 			insert_u32((u32) word);
 
 		} else if (op == memp) {
+			if (a0 >= (1LLU << 2LLU)) print_error("memp: sload/uload/store opcode", a0, pc, 1);
+			if (a1 >= (1LLU << 2LLU)) print_error("memp: size", a1, pc, 2);
+			if (a2 >= (1LLU << 5LLU)) print_error("memp: first data register", a2, pc, 3);
+			if (a3 >= (1LLU << 5LLU)) print_error("memp: second data register", a3, pc, 4);
+			if (a4 >= (1LLU << 5LLU)) print_error("memp: address register", a4, pc, 5);
+			if (a5 >= (1LLU << 7LLU)) print_error("memp: 7-bit immediate offset", a5, pc, 6);
+			if (a6 >= (1LLU << 2LLU)) print_error("memp: 2-bit addressing mode", a6, pc, 7);
 			const nat word = 
-				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
-				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
+				(a1 << 30U) | 
+				(0x14 << 25U) | 
+				(a6 << 23U) |
+				(a0 << 22U) |
+				(a5 << 15U) |
+				(a3 << 10U) |
+				(a4 << 5U) |
+				(a2 << 0U);
+
 			insert_u32((u32) word);
 
 		} else if (op == memi) {
-			if (a0 >= 3) print_error("memi: sload/uload/store opcode", a0, pc, 1);
+			if (a0 >= (1LLU << 2LLU)) print_error("memi: sload/uload/store opcode", a0, pc, 1);
 			if (a1 >= (1LLU << 2LLU)) print_error("memi: size", a1, pc, 2);
 			if (a2 >= (1LLU << 5LLU)) print_error("memi: data register", a2, pc, 3);
 			if (a3 >= (1LLU << 5LLU)) print_error("memi: address register", a3, pc, 4);
@@ -1023,7 +1053,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 		} else if (op == memia) { 
-			if (a0 >= 3) print_error("memi: sload/uload/store opcode", a0, pc, 1);
+			if (a0 >= (1LLU << 2LLU)) print_error("memi: sload/uload/store opcode", a0, pc, 1);
 			if (a1 >= (1LLU << 2LLU)) print_error("memi: size", a1, pc, 2);
 			if (a2 >= (1LLU << 5LLU)) print_error("memi: data register", a2, pc, 3);
 			if (a3 >= (1LLU << 5LLU)) print_error("memi: address register", a3, pc, 4);
@@ -1040,38 +1070,26 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a2 << 0U);
 			insert_u32((u32) word);
 
-
-
-		} else if (op == memr) {  // TODO: simplify this....
-			const nat S = (a4 >> 2) & 1, option = a4 & 3;
-			nat opt = 0;
-			if (option == 0) opt = 2;
-			else if (option == 1) opt = 3;
-			else if (option == 2) opt = 6;
-			else if (option == 3) opt = 7;
-			else abort();
-			const nat is_load = (a0 >> 2) & 1;
-			const nat is_signed = (a0 >> 1) & 1;
-			const nat is_64_dest = (a0 >> 0) & 1;
-			nat opc = 0;
-			if (not is_load) opc = 0;
-			else if (a5 == 3) opc = 1;
-			else if (a5 == 2 and is_signed) opc = 2;
-			else if (a5 == 2 and not is_signed) opc = 1;
-			else if (not is_signed) opc = 1;
-			else if (not is_64_dest) opc = 3; 
-			else opc = 2;
+		} else if (op == memr) {
+			if (a0 >= (1LLU << 2LLU)) print_error("memr: sload/uload/store opcode", a0, pc, 1);
+			if (a1 >= (1LLU << 2LLU)) print_error("memr: size", a1, pc, 2);
+			if (a2 >= (1LLU << 5LLU)) print_error("memr: data register", a2, pc, 3);
+			if (a3 >= (1LLU << 5LLU)) print_error("memr: address register", a3, pc, 4);
+			if (a4 >= (1LLU << 5LLU)) print_error("memr: offset register", a4, pc, 5);
+			if (a5 >= (1LLU << 1LLU)) print_error("memr: should scale bit", a5, pc, 6);
 			const nat word = 
-				(a5 << 30U) | (0x38 << 24U) | (opc << 22U) |
-				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
-				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
+				(a1 << 30U) | 
+				(0x38 << 24U) | 
+				(a0 << 22U) |
+				(1  << 21U) | 
+				(a4 << 16U) | 
+				(3  << 13U) |
+				(a5 << 12U) |
+				(2  << 10U) |
+				(a3 << 5U) |
+				(a2 << 0U);
 			insert_u32((u32) word);
-
-		} else {
-			printf("code generation error: unknown machine instruction \"%s\"\n", operations[op]);
-			
-			print_error("code generation: invalid machine instruction op code", op, pc, 0);
-		}
+		} else print_error("code generation: invalid machine instruction op code", op, pc, 0);
 }
 
 static nat get_length(nat* in) {
@@ -1808,12 +1826,38 @@ finished_outputting:
 
 
 
-			// memi  uload.2  size.2  target_data.5  address.5  immediate.12
 
 
 
-			//orr op destination source1 negate source2 shift type shift amount
-			//orr op.0 destination.1 source1.2 negate.3 source2.4 shift_type.5 shift_amount.6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1873,6 +1917,112 @@ x	assembler printing errors:
 
 
 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			//printf("code generation error: unknown machine instruction \"%s\"\n", operations[op]);
+
+/*
+
+			const nat S = (a4 >> 2) & 1, option = a4 & 3;
+			nat opt = 0;
+			if (option == 0) opt = 2;
+			else if (option == 1) opt = 3;
+			else if (option == 2) opt = 6;
+			else if (option == 3) opt = 7;
+			else abort();
+			const nat is_load = (a0 >> 2) & 1;
+			const nat is_signed = (a0 >> 1) & 1;
+			const nat is_64_dest = (a0 >> 0) & 1;
+			nat opc = 0;
+			if (not is_load) opc = 0;
+			else if (a5 == 3) opc = 1;
+			else if (a5 == 2 and is_signed) opc = 2;
+			else if (a5 == 2 and not is_signed) opc = 1;
+			else if (not is_signed) opc = 1;
+			else if (not is_64_dest) opc = 3; 
+			else opc = 2;
+*/
+
+
+
+
+
+
+
+			// memi  uload.2  size.2  target_data.5  address.5  immediate.12
+
+
+
+			//orr op destination source1 negate source2 shift type shift amount
+			//orr op.0 destination.1 source1.2 negate.3 source2.4 shift_type.5 shift_amount.6
+
+
+
+
+
+
+
 
 
 
