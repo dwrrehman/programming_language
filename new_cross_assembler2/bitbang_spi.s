@@ -138,7 +138,7 @@ set c0 duration set c1 t delay
 rs r_store r_sw address 0 sio_gpio_out	
 set c0 duration set c1 t delay
 
-set c0 send set c1 0100_0000_0000_1110_1111_1111 li
+set c0 send set c1 0100_0000_0001_0100_1111_1111 li
 transmit
 
 set c0 data set c1 0001 li
@@ -162,6 +162,10 @@ eoi
 
 working bitbang spi solution wrote on 1202508155.061604 by dwrr
 
+
+1202508155.070555
+
+	JUST GOT IT WORKING YAYYYYYY I GOT AN LED TURNED ON VIA THE GPIO CONTROLLERRRR YAYYYYYYYY
 
 
 
