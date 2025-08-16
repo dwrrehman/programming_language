@@ -127,7 +127,7 @@ set pads_gpio18  00_1100_1
 set pads_gpio19  00_0010_1
 set pads_gpio20  00_1010_1
 set pads_gpio21  00_0110_1
-set pads_gpio21  00_1110_1
+set pads_gpio22  00_1110_1
 set pads_gpio23  00_0001_1
 set pads_gpio24  00_1001_1
 set pads_gpio25  00_0101_1

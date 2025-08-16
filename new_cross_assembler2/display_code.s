@@ -34,26 +34,28 @@ at transmit
 	ld ra 0
 	set c0 ra function_begin
 	
-	set c0 i set c1 0001_1 li
+	set c0 i set c1 0000_01 li
 
 	rr r_reg r_add save data 0 0
 
 	at loop
 		ri r_imm r_and t send 1
-		ri r_imm r_sll data t 1
+		ri r_imm r_sll data t 0000_1
 		rr r_reg r_or data data save 0
 		rs r_store r_sw address data sio_gpio_out
 	
 		set c0 duration set c1 t delay
 	
-		ri r_imm r_xor data data 001
+		set c0 t set c1 0000_0000_0000_0000_01 li
+		rr r_reg r_xor data data t 0
 		rs r_store r_sw address data sio_gpio_out
 	
 		set c0 duration set c1 t delay
 	
-		ri r_imm r_xor data data 001
+		set c0 t set c1 0000_0000_0000_0000_01 li
+		rr r_reg r_xor data data t 0
 		rs r_store r_sw address data sio_gpio_out
-	
+
 		set c0 duration set c1 t delay
 	
 		ri r_imm r_srl send send 1
@@ -69,12 +71,6 @@ at transmit
 
 
 
-
-	(set c0 data set c1 0001 li
-	rs r_store r_sw address data sio_gpio_out)
-
-
-
 at flash_leds
 	ld ra 0
 	set on_state c0
@@ -85,38 +81,35 @@ at flash_leds
 	rs r_store r_sw address data sio_gpio_out
 	set c0 duration set c1 t delay
 	
-	set c0 send set c1 0100_0000_0000_0000_0000_0000 li
+	set c0 send set c1 0100_0000_0000_0000___0000_0000_0000_0000 li
 	transmit
 	
-	set c0 data set c1 000_1_1111 li
+	set c0 data set c1 000000000000000000_11111 li
 	rs r_store r_sw address data sio_gpio_out
 
 	set c0 duration set c1 t delay
 	
 	
-
 
 	set c0 data set c1 on_state li
 	rs r_store r_sw address data sio_gpio_out
 	set c0 duration set c1 t delay
 	
-	set c0 send set c1 0100_0000_0001_0100_1111_1111 li
+	set c0 send set c1 0100_0000_0001_0100__1111_1111_1111_1111 li
 	transmit
 	
-	set c0 data set c1 0001_1111 li
+	set c0 data set c1 000000000000000000_11111 li
 	rs r_store r_sw address data sio_gpio_out	
 
 
-
-
 	set c0 data set c1 on_state li
 	rs r_store r_sw address data sio_gpio_out
 	set c0 duration set c1 t delay
 	
-	set c0 send set c1 0100_0000_0001_0100_0000_0000 li
+	set c0 send set c1 0100_0000_0001_0100___0000_0000_0000_0000 li
 	transmit
 	
-	set c0 data set c1 0001_1111 li
+	set c0 data set c1 000000000000000000_11111 li
 	rs r_store r_sw address data sio_gpio_out	
 
 
@@ -155,62 +148,48 @@ rs r_store r_sw address data clock_ref_div
 
 set c0 address set c1 io_bank0_base li
 set c0 data set c1 101 li
-rs r_store r_sw address data io_gpio0_ctrl
-rs r_store r_sw address data io_gpio1_ctrl
-rs r_store r_sw address data io_gpio2_ctrl
-rs r_store r_sw address data io_gpio3_ctrl
-rs r_store r_sw address data io_gpio4_ctrl
-rs r_store r_sw address data io_gpio5_ctrl
-rs r_store r_sw address data io_gpio6_ctrl
-rs r_store r_sw address data io_gpio7_ctrl
+rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+rs r_store r_sw address data io_gpio18_ctrl
+rs r_store r_sw address data io_gpio19_ctrl
+rs r_store r_sw address data io_gpio20_ctrl
+rs r_store r_sw address data io_gpio21_ctrl
+rs r_store r_sw address data io_gpio22_ctrl
 rs r_store r_sw address data io_gpio23_ctrl
 
 set c0 address set c1 pads_bank0_base li
 set c0 data set c1 0100_111 li
-rs r_store r_sw address data pads_gpio0
-rs r_store r_sw address data pads_gpio1
-rs r_store r_sw address data pads_gpio2
-rs r_store r_sw address data pads_gpio3
-rs r_store r_sw address data pads_gpio4
-rs r_store r_sw address data pads_gpio5
-rs r_store r_sw address data pads_gpio6
-rs r_store r_sw address data pads_gpio7
+rs r_store r_sw address data pads_gpio16
+rs r_store r_sw address data pads_gpio17
+rs r_store r_sw address data pads_gpio18
+rs r_store r_sw address data pads_gpio19
+rs r_store r_sw address data pads_gpio20
+rs r_store r_sw address data pads_gpio21
+rs r_store r_sw address data pads_gpio22
 rs r_store r_sw address data pads_gpio23
 
 (set c0 data set c1 0100_001 li
 rs r_store r_sw address data pads_gpio4)
 
 set c0 address set c1 sio_base li
-set c0 data set c1 1111_1111_0000_0000___0000_0001_0000_0000 li
+set c0 data set c1 0000_0000_0000_0000___1111_1111_0000_0000 li
 rs r_store r_sw address data sio_gpio_oe
 rs r_store r_sw address 0 sio_gpio_out
 
-
-set c0 data set c1 0001_1111 li
-rs r_store r_sw address data sio_gpio_out	
+set c0 data set c1 000000000000000000_11111 li
+rs r_store r_sw address data sio_gpio_out
 set c0 duration set c1 t delay
 
-
 at lll
+	set c0 000000000000000000_01111 flash_leds
 
-	set c0 000_01111 flash_leds
+	set c0 000000000000000000_10111 flash_leds
 
-	set c0 000_10111 flash_leds
+	set c0 000000000000000000_11011 flash_leds
 
-	set c0 000_11011 flash_leds
+	set c0 000000000000000000_11101 flash_leds
 
-	set c0 000_11101 flash_leds
-
-	set c0 000_11110 flash_leds
-
-
-	(set c0 data set c1 1100 li
-	rs r_store r_sw address data sio_gpio_out)
-
-	(set c0 data set c1 0011 li
-	rs r_store r_sw address data sio_gpio_out)
-
-	rr r_reg r_add 0 0 0 0 
+	set c0 000000000000000000_11110 flash_leds
 
 	rj r_jal 0 lll
 
@@ -226,12 +205,34 @@ working bitbang spi solution wrote on 1202508155.061604 by dwrr
 
 
 
+1202508155.205855
+	adjusted the pins to account for the actual display's wiring!
+
+	going to test out the program again on the actual display itself now!!! lets see if it works!!
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+	(set c0 data set c1 1100 li
+	rs r_store r_sw address data sio_gpio_out)
+
+	(set c0 data set c1 0011 li
+	rs r_store r_sw address data sio_gpio_out)
 
 
 
@@ -261,6 +262,10 @@ at loop
 
 
 
+
+
+	(set c0 data set c1 0001 li
+	rs r_store r_sw address data sio_gpio_out)
 
 
 
