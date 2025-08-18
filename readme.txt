@@ -747,6 +747,22 @@ arm64:
 
 
 
+---------------------------------------------------------
+	ori op.2 destination.5 source1.5 immediate.64
+---------------------------------------------------------
+	if op is 0, this performs an and, 
+	if op is 1, this performs an or,
+	if op is 2, this performs an xor,
+	if op is 3, this peforms an and, 
+		while setting the flags.
+
+
+TODO:
+
+	work in progress still!!!
+
+
+
 
 ---------------------------------------------------------
 	orr op.2 destination.5 source1.5 negate.1 

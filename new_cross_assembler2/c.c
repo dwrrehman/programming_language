@@ -925,13 +925,13 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 		} else if (op == addr) {
-			if (a6 >= (1LLU << 1LLU)) print_error("addr: is subtract bit", a6, pc, 7);
-			if (a5 >= (1LLU << 1LLU)) print_error("addr: should set flags bit", a5, pc, 6);
-			if (a4 >= (1LLU << 2LLU)) print_error("addr: shift type", a4, pc, 5);
-			if (a3 >= (1LLU << 6LLU)) print_error("addr: shift amount", a3, pc, 4);
-			if (a2 >= (1LLU << 5LLU)) print_error("addr: source2 register", a2, pc, 3);
-			if (a1 >= (1LLU << 5LLU)) print_error("addr: source1 register", a1, pc, 2);
-			if (a0 >= (1LLU << 5LLU)) print_error("addr: destination register", a0, pc, 1);
+			if (a0 >= (1LLU << 1LLU)) print_error("addr: is subtract bit", a6, pc, 7);
+			if (a1 >= (1LLU << 1LLU)) print_error("addr: should set flags bit", a5, pc, 6);
+			if (a2 >= (1LLU << 5LLU)) print_error("addr: destination register", a0, pc, 1);
+			if (a3 >= (1LLU << 5LLU)) print_error("addr: source1 register", a1, pc, 2);
+			if (a4 >= (1LLU << 5LLU)) print_error("addr: source2 register", a2, pc, 3);
+			if (a4 >= (1LLU << 6LLU)) print_error("addr: shift amount", a3, pc, 4);
+			
 			const nat word = 
 				(1LLU << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
@@ -939,6 +939,15 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 		} else if (op == addx) {
+
+			if (a6 >= (1LLU << 1LLU)) print_error("addr: is subtract bit", a6, pc, 7);
+			if (a5 >= (1LLU << 1LLU)) print_error("addr: should set flags bit", a5, pc, 6);
+			if (a4 >= (1LLU << 2LLU)) print_error("addr: ", a4, pc, 5);
+			if (a3 >= (1LLU << 6LLU)) print_error("addr: shift amount", a3, pc, 4);
+			if (a2 >= (1LLU << 5LLU)) print_error("addr: source2 register", a2, pc, 3);
+			if (a1 >= (1LLU << 5LLU)) print_error("addr: source1 register", a1, pc, 2);
+			if (a0 >= (1LLU << 5LLU)) print_error("addr: destination register", a0, pc, 1);
+
 			const nat word = 
 				(1LLU << 31U) | (a6 << 30U) | (a5 << 29U) | 
 				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
@@ -955,13 +964,23 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(1LLU << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
 			insert_u32((u32) word);
 
-
 		} else if (op == csel) {
+			if (a0 >= (1LLU << 4LLU)) print_error("csel: condition code", a0, pc, 1);
+			if (a1 >= (1LLU << 1LLU)) print_error("csel: increment bit", a1, pc, 2);
+			if (a2 >= (1LLU << 1LLU)) print_error("csel: invert bit", a2, pc, 3);
+			if (a3 >= (1LLU << 5LLU)) print_error("divr: destination register", a3, pc, 4);
+			if (a4 >= (1LLU << 5LLU)) print_error("divr: source1 register", a4, pc, 5);
+			if (a5 >= (1LLU << 5LLU)) print_error("divr: source2 register", a5, pc, 6);
 			const nat word = 
-				(1LLU << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
-				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
+				(1LLU << 31LLU) |
+				(a2 << 30LLU) |
+				(0xD4 << 21LLU) |
+				(a5 << 16LLU) |
+				(a0 << 12LLU) |
+				(a1 << 10LLU) |
+				(a4 << 5LLU) |
+				(a3 << 0LLU);
 			insert_u32((u32) word);
-
 
 		} else if (op == madd) {
 			const nat word = 
@@ -986,16 +1005,23 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a0);
 			insert_u32((u32) word);
 
-
-
-		} else if (op == ori) { // TODO: implement this instruction
-
-			puts("TODO: please implement the ori instruction: "
-				"this is the last instruction we need to implement "
-				"and then we are done with iplemementing the arm64 backend!"
-			);
-
-			abort();
+		} else if (op == ori) {
+			if (a0 >= (1LLU << 2LLU)) print_error("ori: operation type", a0, pc, 1);
+			if (a1 >= (1LLU << 5LLU)) print_error("ori: destination reg", a1, pc, 2);
+			if (a2 >= (1LLU << 5LLU)) print_error("ori: source1 reg", a2, pc, 3);
+			if (a3 >= (1LLU << 1LLU)) print_error("ori: N is_64bit imm pattern flag", a3, pc, 4);
+			if (a4 >= (1LLU << 6LLU)) print_error("ori: number of 1-bits in 64-bit imm pattern", a4, pc, 5);
+			if (a5 >= (1LLU << 6LLU)) print_error("ori: rotate 64-bit imm pattern amount", a5, pc, 6);
+			const nat word = 
+				(1LLU << 31LLU) |
+				(a0 << 29LLU) |
+				(0x24LLU << 24LLU) |
+				(a3 << 22LLU) |
+				(a5 << 16LLU) |
+				(a4 << 10LLU) |
+				(a2 <<  5LLU) |
+				(a1 <<  0LLU);
+			insert_u32((u32) word);
 
 		} else if (op == orr) {			
 			if (a0 >= (1LLU << 2LLU)) print_error("orr: operation type", a0, pc, 1);
