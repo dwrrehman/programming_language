@@ -4,6 +4,8 @@ file library/core.s
 file library/useful.s
 file library/rp2350.s
 
+str "firmware.uf2" set_output_name
+
 set data 01
 set address 001
 set i 0001
@@ -128,6 +130,8 @@ at flash_leds
 
 
 at skipmacros del skipmacros
+
+
 
 
 rp2350

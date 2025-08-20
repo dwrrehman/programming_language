@@ -3,7 +3,7 @@
 set '0' 000011
 set newline 0101
 
-st ctstackpointer ctcallstack
+st assembler_stack_pointer assembler_stack_base
 
 zero c0 zero c1
 zero c2 zero c3
@@ -17,10 +17,10 @@ at function_begin
 	ld ra 0
 	set arg c0
 
-	ld sp ctstackpointer
+	ld sp assembler_stack_pointer
 	st sp arg
 	incr sp
-	st ctstackpointer sp 
+	st assembler_stack_pointer sp 
 
 	del sp
 	del arg
@@ -32,12 +32,25 @@ at function_begin
 at function_end
 	ld ra 0
 
-	ld sp ctstackpointer sub sp 1
-	st ctstackpointer sp
+	ld sp assembler_stack_pointer sub sp 1
+	st assembler_stack_pointer sp
 	del sp
 
 	eq 0 0 ra del ra
 	lt 0 0 function_end
+
+
+at set_output_name
+	ld ra 0 
+	set c0 ra function_begin
+
+	emit 1 0
+	st output_name 0
+	st assembler_count 0
+
+	function_end 
+	eq 0 0 ra del ra 
+	lt 0 0 set_output_name
 
 
 at riscv_uf2
@@ -92,7 +105,7 @@ at ctputchar
 	set c0 ra function_begin
 	ld p assembler_pass
 	eq p 0 skip
-		st assembler_putc c
+		st assembler_write c
 	at skip del skip
 	del p del c
 	function_end

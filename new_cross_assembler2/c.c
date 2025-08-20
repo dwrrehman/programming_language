@@ -28,9 +28,10 @@ typedef uint8_t byte;
 
 static nat debug = 0;
 
-#define max_variable_count	(1 << 20)
-#define max_instruction_count	(1 << 20)
-#define max_memory_size		(1 << 16)
+#define max_variable_count	(1 << 21)
+#define max_instruction_count	(1 << 21)
+#define max_memory_size		(1 << 21)
+#define max_output_size		(1 << 21)
 #define max_string_count	(1 << 12)
 #define max_file_count		(1 << 12)
 #define max_section_count 	(1 << 12)
@@ -49,23 +50,31 @@ enum all_output_formats {
 	uf2_executable,
 };
 enum memory_mapped_addresses {
-	return_address,
-	ctstackpointer,
-	output_format,
-	executable_stack_size,
-	uf2_family_id,
-	overwrite_output,
+	assembler_return_address,
+	assembler_stack_pointer,
+
 	assembler_pass,
-	assembler_putc,
-	ctcallstack,
+	assembler_count,
+	assembler_data,
+	assembler_read,
+	assembler_write,
+	assembler_open,
+
+	assembler_output_format,
+	assembler_output_name,
+	assembler_overwrite_output,
+	assembler_executable_stack_size,
+	assembler_uf2_family_id,
+
+	assembler_stack_base,
 };
 
 enum isa {
 	zero, incr,
 	set, add, sub, mul, div_, rem,
-	and_, or_, eor, si, sd,
-	ld, st, lt, eq, at, emit, sect,
-	file, del, str, eoi,
+	and_, or_, eor, si, sd, 
+	ld, st, lt, eq, at, emit, sect, 
+	file, del, str, eoi, 
 	rr, ri, rs, rb, ru, rj,
 	mo, mb,
 	nop, svc, mov, bfm,
@@ -83,12 +92,12 @@ static const char* operations[isa_count] = {
 	"set", "add", "sub", "mul", "div", "rem", 
 	"and", "or", "eor", "si", "sd", 
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
-	"file", "del", "str", "eoi",
-	"rr", "ri", "rs", "rb", "ru", "rj",
-	"mo", "mb",
-	"nop", "svc", "mov", "bfm",
-	"adc", "addx", "addi", "addr", "adr",
-	"shv", "clz", "rev", "jmp", "bc", "br",
+	"file", "del", "str", "eoi", 
+	"rr", "ri", "rs", "rb", "ru", "rj", 
+	"mo", "mb", 
+	"nop", "svc", "mov", "bfm", 
+	"adc", "addx", "addi", "addr", "adr", 
+	"shv", "clz", "rev", "jmp", "bc", "br", 
 	"cbz", "tbz", "ccmp", "csel",
 	"ori", "orr", "extr", "ldrl",
 	"memp", "memia", "memi", "memr",
@@ -114,12 +123,12 @@ static const nat arity[isa_count] = {
 
 static const nat is_undefined = 1;
 static const nat is_ct_label = 2;
-static const char* output_filename = "output_from_assembler";
+static char output_filename[4096] = {0};
 static nat format = no_output;
 static nat should_overwrite = false;
 static nat stack_size = 0;
 static nat family_id = 0;
-static uint8_t* output_bytes = NULL;
+static byte output_bytes[max_output_size] = {0};
 static nat output_count = 0;
 static nat memory[max_memory_size] = {0};
 static nat file_count = 0;
@@ -145,7 +154,6 @@ static nat section_count = 0;
 #define get_imm(n) (n >> 32LLU)
 
 static void insert_byte(byte x) {
-	output_bytes = realloc(output_bytes, output_count + 1);
 	output_bytes[output_count++] = x;
 }
 static void insert_bytes(const char* s, nat len) {
@@ -216,10 +224,24 @@ static char* load_file(const char* given_filename, nat filename_length, nat* tex
 	return text;
 }
 
+static nat read_char(void) {
+	struct termios terminal = {0};
+	tcgetattr(0, &terminal);
+	struct termios copy = terminal; 
+	copy.c_cc[VMIN] = 1; 
+	copy.c_cc[VTIME] = 0;
+	copy.c_lflag &= ~((size_t) ECHO | ICANON);
+	char c = 0;
+	tcsetattr(0, TCSANOW, &copy);
+	read(0, &c, 1);
+	tcsetattr(0, TCSANOW, &terminal);
+	return (nat) c;
+}
+
 static void write_output(byte* string, nat count) {
 	if (not access(output_filename, F_OK)) {
 		if (not should_overwrite) {
-			printf("\033[35mwarning:\033[0m file exists. do you wish to remove the previous one? (y/n) ");
+			printf("\033[35mwarning:\033[0m file \"%s\" exists. do you wish to remove the previous one? (y/n) ", output_filename);
 			fflush(stdout);
 		}
 		if (should_overwrite or getchar() == 'y') {
@@ -344,14 +366,14 @@ static void print_source_at(
 
 static void print_stack_trace(void) {
 	//dump_hex((uint8_t*) memory, 256);
-	const nat sp = memory[ctstackpointer];
-	if (ctcallstack > sp) {
+	const nat sp = memory[assembler_stack_pointer];
+	if (assembler_stack_base > sp) {
 		puts("ERROR: could not print call stack, stack pointer invalid!");
 		return;
 	}
-	const nat count = sp - ctcallstack;
+	const nat count = sp - assembler_stack_base;
 	for (nat i = count; i--;) {
-		const nat pc = memory[ctcallstack + i];
+		const nat pc = memory[assembler_stack_base + i];
 		const nat value = pc;
 		const nat arg = 0;
 		const nat begin = file_offset[pc + arg];
@@ -560,8 +582,8 @@ read_loop:
 		puts("");
 
 	} else if (not strcmp(input, ":output\n")) {
-		if (pass) dump_hex(output_bytes, output_count);
-		else printf("output_count = %llu\n", output_count);
+		dump_hex(output_bytes, output_count);
+		printf("output_count = %llu\n", output_count);
 
 	} else if (not strcmp(input, ":memory\n")) {
 		dump_hex((uint8_t*) memory, 256);
@@ -1146,7 +1168,6 @@ int main(int argc, const char** argv) {
 	nat stack_count = 1;
 	nat included_filepaths[max_file_count] = {0};
 	nat included_count = 0;
-
 	nat first_length = 0;
 	file_names[file_count] = argv[1];
 	file_name_lengths[file_count] = strlen(argv[1]);
@@ -1155,15 +1176,11 @@ int main(int argc, const char** argv) {
 	file_count++;
 
 process_file:;
-
 	const nat index = index_stack[stack_count - 1];
 	const nat this_file = file_stack[stack_count - 1];
-
 	const nat text_length = file_length[this_file];
 	const char* text = file_text[this_file];
-
 	nat length = 0, start = 0, is_immediate = 0, arg_count = 0;
-
 	nat args[16] = {0};
 	nat offsets[16] = {0};
 
@@ -1348,9 +1365,7 @@ process_file:;
 	memory[assembler_pass] = pass;
 	if (pass == 1) output_count = 0;
 	for (nat pc = 0; pc < ins_count; pc += 16) {
-
 		if (debug == 2) cte_debugger(pc / 16, pass);
-
 		const nat op = get_op(ins[pc + 0]);
 		const nat imm = get_imm(ins[pc + 0]);
 		const nat arg0 = ins[pc + 1];
@@ -1366,10 +1381,9 @@ process_file:;
 			print_error("invalid store address", val0, pc, 1);
 		if (op == ld and val1 >= max_memory_size) 
 			print_error("invalid memory address", val1, pc, 2);
-	
-		if (op == str) {
-			if (pass == 1) insert_bytes(strings[arg1], arg0); else output_count += arg0;
-		} else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
+
+		if (op == str) insert_bytes(strings[arg1], arg0);
+		else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
 			in[0] = op | (0xffffLLU << 32LLU);
 			for (nat a = 0; a < arity[op]; a++) {
 				const nat arg = ins[pc + a + 1];
@@ -1396,26 +1410,40 @@ process_file:;
 		else if (op == at)   values[arg0] = (types[arg0] & is_ct_label) ? pc : output_count;
 		else if (op == lt) { if (val0  < val1) { *memory = pc; pc = val2; } }
 		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
-		else { 
-			printf("CTE: fatal internal error: "
-				"unknown instruction executed: opcode %llu \n", op
-			); 
-			print_error("invalid CTE operation executed", op, pc, 0);
+		else print_error("invalid CTE operation executed", op, pc, 0);
+		
+		if (op == ld and val1 == assembler_count) values[arg0] = output_count;
+		if (op == ld and val1 == assembler_data) values[arg0] = output_bytes[val0];
+		if (op == ld and val1 == assembler_read)  values[arg0] = read_char();
+		if (op == st and val0 == assembler_count) output_count = val1;		
+		if (op == st and val0 == assembler_write) { char c = (char) val1; write(1, &c, 1); }
+		if (op == st and val0 == assembler_open) {
+			nat text_length = 0;
+			char* text = load_file((char*) output_bytes + val1, strlen((char*) output_bytes + val1), &text_length);
+			insert_bytes(text, text_length);
 		}
-		if (op == st and val0 == assembler_putc) { char c = (char) val1; write(1, &c, 1); } 
+		if (op == st and val0 == assembler_output_name) {
+			memcpy(output_filename, output_bytes + val1, strlen((char*) (output_bytes + val1)));
+		}
+	}}
+
+	format = memory[assembler_output_format];
+	family_id = memory[assembler_uf2_family_id];
+	should_overwrite = memory[assembler_overwrite_output];
+	stack_size = memory[assembler_executable_stack_size];
+
+	if (not strlen(output_filename) and format != no_output) {
+		puts("\033[35;1mwarning:\033[0m output filename is the empty string");
+		puts("\033[35;1mwarning:\033[0m using default output filename instead: \"assembler_default_output_name\"");
+		puts("\033[35;1mwarning:\033[0m overwrite_output is set to false for implicit default output name");
+		const char* s = "assembler_default_output_name";
+		memcpy(output_filename, s, strlen(s)); 
+		should_overwrite = false;
 	}
-
-	format = memory[output_format];
-	family_id = memory[uf2_family_id];
-	should_overwrite = memory[overwrite_output];
-	stack_size = memory[executable_stack_size]; }
-
-	if (not ins_count) exit(0);
 	if (format == macho_executable and stack_size < min_stack_size) {
-		puts("\033[35mwarning:\033[0m stack size less than minimum for format macho_executable, overwriting");
+		puts("\033[35;1mwarning:\033[0m stack size less than minimum for format macho_executable, overwriting");
 		stack_size = min_stack_size;
 	}
-	if (format == uf2_executable) output_filename = "output_from_assembler.uf2";
 
 	if (debug) {
 		print_dictionary();
@@ -1424,7 +1452,7 @@ process_file:;
 		puts("also, code generation: done.");
 		puts("final_bytes:");
 		dump_hex(output_bytes, output_count);
-		printf("info: generating output file with format #%llu...\n", format);
+		printf("info: outputting with name \"%s\" and format #%llu ...\n", output_filename, format);
 	}
 
 	if (format == no_output) goto generate_no_output;
@@ -1887,10 +1915,47 @@ finished_outputting:
 
 
 
+/*if (op == st and val0 == output_name) { 
+			const nat n = val1;
+			nat length = memory[n + 0];
+			nat base = n + 1;
+			for (nat i = 0; i < length; i++) {
+				if (c >= 32 and c < 255) output_filename[i] = (char) c;
+				else print_error("invalid output name byte", c, pc, 0);
+				output_filename[i] = memory[base + i];
+			}
+		}*/
+
+
+/*
+
+
+const nat k = 0xffffffff;
+			
+			nat x0 = memory[assembler_arg0];
+			nat x1 = memory[assembler_arg1];
+			nat x2 = memory[assembler_arg2];
+			nat x3 = memory[assembler_arg3];
+			     if (n == system_load) x0 = *(byte*) x1;
+			else if (n == system_store) *(byte*) x0 = x1;
+			else if (n == system_exit) exit((int) x0);
+			else if (n == system_fork) x0 = (nat) fork();
+			else if (n == system_read) x0 = (nat) read((int) x0, (void*) x1, (size_t) x2);
+			else if (n == system_write) x0 = (nat) write((int) x0, (void*) x1, (size_t) x2);
+			else if (n == system_open) x0 = (nat) open((const char*) x0, (int) x1, (mode_t) x2);
+			else if (n == system_close) x0 = (nat) close((int) x0);
+			else if (n == system_mmap) x0 = (nat) (void*) mmap((void*) x0, (size_t) x1,
+				(int) (x2 & k), (int) ((x2 >> 32) & k), (int) (x3 & k),
+				(off_t) ((x3 >> 32) & k));
+			else if (n == system_munmap) x0 = (nat) munmap((void*) x0, (size_t) x1);
+			else print_error("invalid system call number", x0, pc, 0);
+			memory[assembler_arg0] = x0;
+			memory[assembler_arg1] = (nat) errno;
 
 
 
 
+*/
 
 
 
@@ -2028,6 +2093,15 @@ x	assembler printing errors:
 			else if (not is_signed) opc = 1;
 			else if (not is_64_dest) opc = 3; 
 			else opc = 2;
+
+
+
+
+
+printf("output_bytes + %llu = %p\n", val1, (void*) (output_bytes + val1));
+			dump_hex(output_bytes, output_count);
+			printf("output_count = %llu\n", output_count);
+
 */
 
 
