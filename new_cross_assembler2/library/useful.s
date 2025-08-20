@@ -132,13 +132,27 @@ at ctprintbinary
 	lt 0 0 ctprintbinary
 
 
-
 at ctnl 
 	ld ra 0
 	set c0 ra function_begin
 	set c0 newline ctputchar
 	function_end
 	eq 0 0 ra del ra lt 0 0 ctnl
+
+at ctprintstring
+	ld ra 0
+	set c0 ra function_begin
+	ld n assembler_count
+	zero i
+	at loop
+		set b i ld b assembler_data
+		set c0 b ctputchar del b
+		incr i lt i n loop
+	del loop del i del n 
+	st assembler_count 0
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 ctprintstring
 
 
 at la
