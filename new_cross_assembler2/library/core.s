@@ -24,26 +24,28 @@ incr x set ti_txt_executable x
 incr x set uf2_executable x
 
 
-
 zero x set assembler_return_address x
 incr x set assembler_stack_pointer x
-
 incr x set assembler_pass x
 incr x set assembler_count x
 incr x set assembler_data x
 incr x set assembler_read x
 incr x set assembler_write x
 incr x set assembler_open x
-
 incr x set output_format x 
 incr x set output_name x 
 incr x set overwrite_output x 
 incr x set executable_stack_size x 
 incr x set uf2_family_id x 
-
 incr x set assembler_stack_base x
 
 del x
+
+
+
+
+
+
 
 
 (risc-v op codes)
@@ -135,10 +137,23 @@ set r_write 11
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (macos specific, for macho files lol)
 
 set min_stack_size_macos 1000_0000_0000_001
-
 
 
 
@@ -147,38 +162,99 @@ set min_stack_size_macos 1000_0000_0000_001
 set mov_type_zero 01
 
 
-
 (arm64 hardware registers)
 
 
-set a6_link 01111
-
+set a6_lr 01111
 set a6_sp 11111
 set a6_zero 11111
 
+
+(system call numbers for macos arm64)
+
+set a6_exit 		1
+set a6_fork 		01
+set a6_read 		11
+set a6_write 		001
+set a6_open 		101
+set a6_close 		101
+set a6_wait4		111
+set a6_link 		1001
+set a6_unlink 		0101
+set a6_chdir 		0011
+set a6_fchdir 		1011
+set a6_chmod		1111
+set a6_getpid		00101
+set a6_recvmsg		11011
+set a6_sendmsg		00111
+set a6_recvfrom		10111
+set a6_accept		01111
+set a6_getsockname	000001
+set a6_access		100001
+set a6_sync		001001
+set a6_kill		101001
+set a6_dup		100101
+set a6_pipe		010101
+set a6_sigaction	011101
+set a6_ioctl		011011
+set a6_execve		110111
+set a6_munmap		1001001
+set a6_dup2		0101101
+set a6_fcntl		0011101
+set a6_select		1011101
+set a6_fsync		1111101
+set a6_socket		1000011
+set a6_connect		0100011
+set a6_bind		0001011
+set a6_setsockopt	1001011
+set a6_listen		0101011
+set a6_gettimeofday	0010111
+set a6_getsockopt	0110111
+set a6_settimeofday	0101111
+set a6_fchmod		0011111
+set a6_rename		00000001
+set a6_sendto		10100001
+set a6_shutdown		01100001
+set a6_mkdir		00010001
+set a6_rmdir		10010001
+set a6_mount		11100101
+set a6_fdatasync	11011101
+set a6_stat		00111101
+set a6_fstat		10111111
+set a6_lstat		01111111
+set a6_getdirentries	00100011
+set a6_mmap 		10100011
+set a6_lseek		11100011
+set a6_truncate		00010011
+set a6_ftruncate	10010011
+set a6_copyfile		11000111
+set a6_poll		01100111
+set a6_posix_spawn	00101111
+set a6_openat 		111100111
+
+(macos undocumented system calls: )
+
+set a6_bsdthread_create			000101101
+set a6_bsdthread_terminate 		100101101
 
 
 (system call abi for macos)
 
 set a6_number 00001
+
 set a6_arg0 0
 set a6_arg1 1
 set a6_arg2 01
 set a6_arg3 11
-
-
-(system call numbers for macos)
-
-set a6_exit 1
-set a6_fork 01
-set a6_read 11
-set a6_write 001
+set a6_arg4 001
+set a6_arg5 101
+set a6_arg6 011
+set a6_arg7 111
 
 
 
 
 (conditions for bc branches and ccmp)
-
 
 set cond_always 0111
 set cond_never 1111
@@ -217,5 +293,119 @@ the core standard library for the assembler
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(
+9 link
+10 unlink
+
+12 chdir 
+13 fchdir
+15 chmod 
+20 getpid
+
+
+27 recvmsg
+28 sendmsg
+29 recvfrom
+30 accept
+32 getsockname
+
+33 access
+36 sync
+
+37 kill
+
+
+41 dup
+42 pipe
+46 sigaction
+
+54 ioctl
+59 execve
+
+73 munmap
+
+
+90 dup2
+
+92 fcntl
+93 select
+
+95 fsync
+
+97 socket
+98 connect
+
+104 bind
+105 setsockopt
+
+106 listen
+
+116 gettimeofday
+
+118 getsockopt
+
+
+122 settimeofday
+
+124 fchmod
+
+128 rename
+
+133 sendto
+134 shutdown
+
+136 mkdir 
+137 rmdir
+
+167 mount
+
+187 fdatasync
+
+188 stat
+189 fstat
+190 lstat
+
+196 getdirentries
+
+197 mmap
+
+199 lseek
+
+200 truncate
+201 ftruncate
+
+227 copyfile
+
+230 poll
+
+244 posix_spawn
+
+
+
+360 bsdthread_create
+361 bsdthread_terminate
+
+
+463 openat
+
+
+
+)
 
 

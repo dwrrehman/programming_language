@@ -1,125 +1,85 @@
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
+
+
+(the start of a screen editor  written using the compiletime language of our assembler!
+written on 1202508203.051100 by dwrr)
+
+
+set begin 0000_0000_1
+set end begin
+(set cursor end)
+
+ld pass assembler_pass	
+eq pass 0 terminate del pass
 
 eq 0 0 main
 
-at exponentiate
+at ctgetchar
 	ld ra 0
-	set base c0 
-	set power c1
 	set c0 ra function_begin
 
-	set c0 1
-	zero i
+	ld pass assembler_pass	
+	eq pass 0 s
+		ld c assembler_read
+	at s del s
+	function_end
+	set c0 c
+	eq 0 0 ra del ra
+	lt 0 0 ctgetchar
+
+at display
+	ld ra 0
+	set c0 ra function_begin
+
+	emit 1 escape str "[H" 
+	emit 1 escape str "[J" ctprintstring
+
+	set p begin
 	at loop
-		mul c0 base incr i
-		lt i power loop del loop
+		eq p end done		
+		ld c p incr p
+		set c0 c ctputchar
+		eq 0 0 loop del loop
+	at done del done
 
-	del base del power
 	function_end
 	eq 0 0 ra del ra
-	lt 0 0 exponentiate
-
-
-at ctprintdecimal
-	ld ra 0
-	set n c0
-	set c0 ra function_begin
-
-	set array 0000_0000_1
-	set count 0101
-
-	set p array
-	zero i at l	
-		set data i
-		st p data incr p
-		incr i lt i count l del l
-
-	set p array add p count sub p 1
-	zero i at l 
-		ld b p sub p 1 add b '0'
-		set c0 b ctputchar del b
-		incr i lt i count l del l
-
-	ctnl
-
-	del i del p
-	del count
-	del array
-
-	del n
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 ctprintdecimal
-
-
+	lt 0 0 display
 
 at main
 
-(zero i
 at l
-	str "the value is: '" ctprintstring
-	set c0 i ctprintbinary 
-	str "', and we are on iteration " ctprintstring
-	set c0 i ctprintbinary 
-	str " currently." ctprintstring ctnl
-	incr i lt i 0101 l
+	display
+	ld c assembler_read
 
+	eq c 'q' done
+	eq c '.' paste
+	eq c 1111_111 backspace
 
-set operation_count 101
+	st end c incr end
+	eq 0 0 l
 
-set 0sp_hole_count 00101
-sub 0sp_hole_count 101
-sub 0sp_hole_count 1
+at backspace
+	sub end 1
+	eq 0 0 l
 
-set c0 operation_count 
-set c1 0sp_hole_count 
-exponentiate 
-set 0sp_size c0
+at paste
+	st end 'h' incr end
+	st end 'e' incr end
+	st end 'l' incr end
+	st end 'l' incr end
+	st end 'o' incr end
+	eq 0 0 l
 
-set product 0sp_size
+at done
 
-str "the size of 0-space is: '" ctprintstring 
-set c0 product ctprintbinary ctnl
-)
+str "terminating..." ctprintstring ctnl
 
-
-
-set c0 0011 ctprintdecimal
-
-
-
-
+at terminate
 
 eoi
 
-a program to test out using my editor for writing actual programs not in the assemblers directory.
-this test is an read-only editor like program!
-written on 1202508203.021226
+a program to try to recreate the editor during compiletime! 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	

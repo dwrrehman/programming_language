@@ -8,7 +8,9 @@ set escape space sub escape 101
 
 (macro generator for my editor: aucawpoonseoonseooonseup)
 
-set '!' 000001 add '!' 1
+set '!' 100001
+set '.' 011101
+
 
 set '0' 000011
 set '1' '0' add '1' 1

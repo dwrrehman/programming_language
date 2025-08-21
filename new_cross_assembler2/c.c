@@ -4,6 +4,20 @@
 // rewritten on 1202508133.024130 by dwrr
 // finished errors on 1202508133.185450 
 
+
+// bug: if you partially issue the last runtime instruction (incomplete argument list), no warning/error/diagnostic is generated....
+// fix this
+
+
+// bug:  redo  / fix the arity for all arm64 instructions,  its one more becuase of the sf bit
+
+
+
+// bug:   make   addi   opcode bit arguments    appear first in the argument list!
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,8 +126,8 @@ static const nat arity[isa_count] = {
 	1, 1, 0, 0, 
 	6, 5, 5, 5, 3, 3,
 	8, 2,
-	0, 0, 5, 7, 
-	6, 8, 7, 8, 3,
+	0, 0, 4, 7, 
+	6, 7, 6, 7, 3,
 	5, 4, 4, 2, 2, 3, 
 	4, 4, 7, 7, 
 	5, 8, 5, 3, 
@@ -918,7 +932,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 			const nat b40 = a1 & 0x1F;
 			const nat b5 = a1 >> 5;
-			const nat offset = 0x3fff & (a2 - output_count);
+			const nat offset = 0x3fff & ((a2 - output_count) >> 2LLU);
 			const nat word = 
 				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
 				(b40 << 19U) |(offset << 5U) | (a0);
@@ -947,33 +961,47 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 		} else if (op == addr) {
-			if (a0 >= (1LLU << 1LLU)) print_error("addr: is subtract bit", a6, pc, 7);
-			if (a1 >= (1LLU << 1LLU)) print_error("addr: should set flags bit", a5, pc, 6);
-			if (a2 >= (1LLU << 5LLU)) print_error("addr: destination register", a0, pc, 1);
-			if (a3 >= (1LLU << 5LLU)) print_error("addr: source1 register", a1, pc, 2);
-			if (a4 >= (1LLU << 5LLU)) print_error("addr: source2 register", a2, pc, 3);
-			if (a4 >= (1LLU << 6LLU)) print_error("addr: shift amount", a3, pc, 4);
+			if (a0 >= (1LLU << 1LLU)) print_error("addr: is subtract bit", a0, pc, 1);
+			if (a1 >= (1LLU << 1LLU)) print_error("addr: should set flags bit", a1, pc, 2);
+			if (a2 >= (1LLU << 5LLU)) print_error("addr: 5-bit destination register", a2, pc, 3);
+			if (a3 >= (1LLU << 5LLU)) print_error("addr: 5-bit source1 register", a3, pc, 4);
+			if (a4 >= (1LLU << 5LLU)) print_error("addr: 5-bit source2 register", a4, pc, 5);
+			if (a5 >= (1LLU << 6LLU)) print_error("addr: 2-bit shift type", a5, pc, 6);
+			if (a6 >= (1LLU << 6LLU)) print_error("addr: 6-bit shift amount immediate", a6, pc, 7);
 			
 			const nat word = 
-				(1LLU << 31U) | (a6 << 30U) | (a5 << 29U) | 
-				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
-				(a4 << 10U) | (a1 << 5U) | (a0);
+				(1LLU << 31LLU) |
+				(a0 << 30LLU) | 
+				(a1 << 29LLU) | 
+				(0xB << 24LLU) | 
+				(a5 << 22LLU) | 
+				(a4 << 16LLU) |
+				(a6 << 10LLU) | 
+				(a3 << 5LLU) | 
+				(a2 << 0LLU);
 			insert_u32((u32) word);
 
 		} else if (op == addx) {
-
-			if (a6 >= (1LLU << 1LLU)) print_error("addr: is subtract bit", a6, pc, 7);
-			if (a5 >= (1LLU << 1LLU)) print_error("addr: should set flags bit", a5, pc, 6);
-			if (a4 >= (1LLU << 2LLU)) print_error("addr: ", a4, pc, 5);
-			if (a3 >= (1LLU << 6LLU)) print_error("addr: shift amount", a3, pc, 4);
-			if (a2 >= (1LLU << 5LLU)) print_error("addr: source2 register", a2, pc, 3);
-			if (a1 >= (1LLU << 5LLU)) print_error("addr: source1 register", a1, pc, 2);
-			if (a0 >= (1LLU << 5LLU)) print_error("addr: destination register", a0, pc, 1);
+			puts("addx: unimplemented so far, fix me "); 
+			abort();
+			if (a6 >= (1LLU << 1LLU)) print_error("addx: is subtract bit", a6, pc, 7);
+			if (a5 >= (1LLU << 1LLU)) print_error("addx: should set flags bit", a5, pc, 6);
+			if (a4 >= (1LLU << 2LLU)) print_error("addx: ", a4, pc, 5);
+			if (a3 >= (1LLU << 6LLU)) print_error("addx: shift amount", a3, pc, 4);
+			if (a2 >= (1LLU << 5LLU)) print_error("addx: source2 register", a2, pc, 3);
+			if (a1 >= (1LLU << 5LLU)) print_error("addx: source1 register", a1, pc, 2);
+			if (a0 >= (1LLU << 5LLU)) print_error("addx: destination register", a0, pc, 1);
 
 			const nat word = 
-				(1LLU << 31U) | (a6 << 30U) | (a5 << 29U) | 
-				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
-				(a4 << 10U) | (a1 << 5U) | (a0);
+				(1LLU << 31U) | 
+				(a6 << 30U) | 
+				(a5 << 29U) | 
+				(0x59 << 21U) | 
+				(a2 << 16U) | 
+				(a3 << 13U) | 
+				(a4 << 10U) | 
+				(a1 << 5U) | 
+				(a0);
 			insert_u32((u32) word);
 
 		} else if (op == divr) {
@@ -1028,12 +1056,13 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 		} else if (op == ori) {
-			if (a0 >= (1LLU << 2LLU)) print_error("ori: operation type", a0, pc, 1);
-			if (a1 >= (1LLU << 5LLU)) print_error("ori: destination reg", a1, pc, 2);
-			if (a2 >= (1LLU << 5LLU)) print_error("ori: source1 reg", a2, pc, 3);
-			if (a3 >= (1LLU << 1LLU)) print_error("ori: N is_64bit imm pattern flag", a3, pc, 4);
-			if (a4 >= (1LLU << 6LLU)) print_error("ori: number of 1-bits in 64-bit imm pattern", a4, pc, 5);
-			if (a5 >= (1LLU << 6LLU)) print_error("ori: rotate 64-bit imm pattern amount", a5, pc, 6);
+			if (a0 >= (1LLU << 2LLU)) print_error("ori: 2-bit operation type", a0, pc, 1);
+			if (a1 >= (1LLU << 5LLU)) print_error("ori: 5-bit destination reg", a1, pc, 2);
+			if (a2 >= (1LLU << 5LLU)) print_error("ori: 5-bit source1 reg", a2, pc, 3);
+			if (a3 >= (1LLU << 1LLU)) print_error("ori: 1-bit N is_64bit imm pattern flag", a3, pc, 4);
+			if (a4 >= (1LLU << 6LLU)) print_error("ori: 6-bit number of 1-bits in 64-bit imm pattern", a4, pc, 5);
+			if (a5 >= (1LLU << 6LLU)) print_error("ori: 6-bit right rotate 64-bit imm pattern amount", a5, pc, 6);
+
 			const nat word = 
 				(1LLU << 31LLU) |
 				(a0 << 29LLU) |
@@ -1222,7 +1251,9 @@ process_file:;
 			}
 
 			for (nat i = var_count; i--;) {
-				if (not (types[i] & is_ct_label)) continue;
+				if (	    (types[i] & is_undefined) or 
+					not (types[i] & is_ct_label)
+				) continue;
 				if (equals(word, variables[i], length, variable_length[i])) {
 					ins[ins_count + 0] = eq | (3LLU << 32LLU);
 					ins[ins_count + 1] = 0;

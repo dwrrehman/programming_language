@@ -148,7 +148,8 @@ at ctprintstring
 		set b i ld b assembler_data
 		set c0 b ctputchar del b
 		incr i lt i n loop
-	del loop del i del n 
+	del loop 
+	del i del n 
 	st assembler_count 0
 	function_end
 	eq 0 0 ra del ra
@@ -233,8 +234,8 @@ at exit
 
 	at arm64_exit 
 	
-		mov a6_number a6_exit 0 mov_type_zero 1
-		mov a6_arg0 code 0 mov_type_zero 1
+		mov a6_number a6_exit 0 mov_type_zero
+		mov a6_arg0 code 0 mov_type_zero
 		svc
 
 	eq 0 0 return
@@ -244,7 +245,7 @@ at exit
 		ri r_imm r_add r_arg0 0 code
 		ri r_ecall 0 0 0 0
 
-	at return
+	at return del return
 	del riscv_exit del arm64_exit
 
 	function_end
@@ -267,10 +268,10 @@ at writestring
 
 	at arm64_writestring
 
-		mov a6_number a6_write 0 mov_type_zero 1
-		mov a6_arg0 stdout 0 mov_type_zero 1
+		mov a6_number a6_write 0 mov_type_zero
+		mov a6_arg0 stdout 0 mov_type_zero
 		adr a6_arg1 string 0
-		mov a6_arg2 string.length 0 mov_type_zero 1
+		mov a6_arg2 length 0 mov_type_zero
 		svc
 	
 	eq 0 0 return
@@ -282,15 +283,15 @@ at writestring
 		ri r_imm r_add r_arg2 0 length
 		ri r_ecall 0 0 0 0
 	
-	at return
+	at return del return
 
 	del riscv_writestring 
 	del arm64_writestring 
 	del string del length
 
-
 	function_end
-	eq 0 0 ra del ra  lt 0 0 writestring
+	eq 0 0 ra del ra 
+	lt 0 0 writestring
 
 
 

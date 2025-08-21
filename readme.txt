@@ -640,14 +640,18 @@ arm64:
 	add source register with immediate and 
 	store into destination register. 
 	
-	Rd/Rn == 31 means the stack pointer, instead of 
-	the zero register.
+	if should_set_flags is zero, then 
+	Rd == 31 means the stack pointer, 
+	else, it means the zero register. 
+
+	Rn == 31 always means the stack pointer, 
+	instead of the zero register. 
+	
 
 
 ---------------------------------------------------------
-	addr    Rd.5  Rn.5  Rm.5  imm.6   
-		shift_type.2  should_setflags.1  
-		should_subtract.1
+	addr    should_subtract.1 should_setflags.1
+		Rd.5  Rn.5  Rm.5  shift_type.2  imm.6 
 ---------------------------------------------------------
 	add source register with optionally 
 	immediate-amount-shifted source register and 
@@ -748,7 +752,9 @@ arm64:
 
 
 ---------------------------------------------------------
-	ori op.2 destination.5 source1.5 immediate.64
+	ori op.2 destination.5 source.5 
+		imm_is_64bit.1 imm_1bit_count.6 
+		imm_ror_amount.6
 ---------------------------------------------------------
 	if op is 0, this performs an and, 
 	if op is 1, this performs an or,
@@ -756,12 +762,17 @@ arm64:
 	if op is 3, this peforms an and, 
 		while setting the flags.
 
+	if op is not equal to 3, 
+	destination == 31 means stack pointer.
 
-TODO:
+	imm_is_64bit and imm_1bit_count	denote the number 
+	of 1 bits in the immediate.
 
-	work in progress still!!!
+	this immediate is then rotated right by 
+	imm_ror_amount bits.
 
-
+	the resultant immediate is combined with source 
+	using op, and written to destination.
 
 
 ---------------------------------------------------------

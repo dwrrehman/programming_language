@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+cp ./run /Users/dwrr/root/personal/executables/assembler
+cp -r ./run.dSYM /Users/dwrr/root/personal/executables/assembler.dSYM
+
