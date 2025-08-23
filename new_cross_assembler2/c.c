@@ -18,6 +18,85 @@
 
 
 
+
+/* constructing the C backend of the assembler!
+
+	which will thus allow us to run code on x86 machines 
+	and other isa's which we don't support
+
+
+the trick is that we will NOTTT USE the CTE language isa 
+but instead use the risc-v backend, 
+	but there will be a flag which will translate the risc-v MI's to C code! 
+	pretty interesting lol. lets see how it goes. 
+
+
+the mapping will be:
+
+
+	
+	rr r_reg r_add d r s 0   --->   x[d] = x[r] + x[s];
+	rr r_reg r_sub d r s 0   --->   x[d] = x[r] - x[s];
+	rr r_reg r_sll d r s 0   --->   x[d] = x[r] << x[s];
+	rr r_reg r_srl d r s 0   --->   x[d] = x[r] >> x[s];
+	rr r_reg r_slt d r s 0   --->   x[d] = x[r] < x[s];
+	rr r_reg r_and d r s 0   --->   x[d] = x[r] & x[s];
+	rr r_reg r_or  d r s 0   --->   x[d] = x[r] | x[s];
+	rr r_reg r_xor d r s 0   --->   x[d] = x[r] ^ x[s];
+
+	rr r_mulop1 r_mulop2 d r s 0   --->   x[d] = x[r] * x[s];
+	rr r_divop1 r_divop2 d r s 0   --->   x[d] = x[r] / x[s];
+	rr r_remop1 r_remop2 d r s 0   --->   x[d] = x[r] % x[s];
+
+	rb r_branch r_bne r s l	  --->   if (x[r] != x[s]) goto l;
+	rb r_branch r_beq r s l	  --->   if (x[r] == x[s]) goto l;
+	rb r_branch r_bltu r s l   --->   if (x[r] < x[s]) goto l;
+	rb r_branch r_bgeu r s l   --->   if (x[r] >= x[s]) goto l;
+	rb r_branch r_blt r s l   --->   if ((int64_t) x[r] < (int64_t) x[s]) goto l;
+	rb r_branch r_bge r s l   --->   if ((int64_t) x[r] >= (int64_t) x[s]) goto l;
+
+	rs r_store r_sb a k r    --->   *(uint8_t*)(x[a] + k) = x[r];
+	rs r_store r_sh a k r    --->   *(uint16_t*)(x[a] + k) = x[r];
+	rs r_store r_sw a k r    --->   *(uint32_t*)(x[a] + k) = x[r];
+	rs r_store r_sd a k r    --->   *(uint64_t*)(x[a] + k) = x[r];
+
+
+
+
+	WAIT
+
+
+			...instead of translating risc-v to c code....
+
+				which we could do as well... 
+
+
+				what if we just directly translate it to x86 machine code... 
+
+						like, it wouldnt be thattt much harder, honestlyy
+
+							it doesnt have to be fast at all lol 
+
+
+							....
+
+
+
+
+				and then to get code to run on our phone, we would use the linux system call abi, and also output an elf file too! 
+
+
+						okay that could work!
+
+
+	
+
+*/
+
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -130,7 +209,7 @@ static const nat arity[isa_count] = {
 	6, 7, 6, 7, 3,
 	5, 4, 4, 2, 2, 3, 
 	4, 4, 7, 7, 
-	5, 8, 5, 3, 
+	5, 7, 5, 3, 
 	7, 6, 5, 6,
 	8, 5,
 };
@@ -549,9 +628,9 @@ static void print_instruction_window_around(
 			row_count++; continue;
 		}
 
-		printf("  %s%4llu │ ",
+		printf("  %s%7llu │ ",
 			not i ? "\033[32;1m•\033[0m\033[48;5;238m" : "\033[32;1m•\033[0m",
-			here / 16
+			here
 		);
 
 		if (not i) printf("\033[48;5;238m");
@@ -1189,6 +1268,18 @@ static nat get_length(nat* in) {
 	return length;
 }
 
+/*static nat previous = 0;
+
+static void debug_414(const char* string) {
+	if (previous != values[414]) {
+		printf("[%s]: OFF: CHANGING THE VARIABLE! new value: (previously %llu) ---> NOW: %llu\n", string, previous, values[414]);
+		previous = values[414];
+		getchar();
+		printf("continue?\n");
+		getchar();
+	}
+}*/
+
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
 
@@ -1312,7 +1403,14 @@ process_file:;
 		var = var_count;
 		variables[var] = word;
 		variable_length[var] = length;
+
+			//debug_414("init0");
+
+
 		values[var] = (nat) -1;
+
+			//debug_414("init1");
+
 		var_count++;
 
 	push_argument:
@@ -1350,8 +1448,14 @@ process_file:;
 			goto process_file;
 
 		} else {
+
+			//debug_414("label init");
+
 			if (op == at) values[args[1]] = ins_count;
 			else if (op == lt or op == eq) types[args[3]] |= is_ct_label;
+
+			//debug_414("label set");
+
 			args[0] |= is_immediate << 32LLU; is_immediate = 0;
 			memcpy(ins + ins_count, args, sizeof args);
 			memcpy(file_offset + ins_count, offsets, sizeof offsets);
@@ -1406,6 +1510,8 @@ process_file:;
 		const nat val1 = (imm & 2) or 1 >= arity[op] ? arg1 : values[arg1];
 		const nat val2 = (imm & 4) or 2 >= arity[op] ? arg2 : values[arg2];
 
+			//debug_414("cte loop before");
+
 		if ((op == lt or op == eq) and val2 >= ins_count)
 			print_error("invalid jump address", val2, pc, 3);
 		if (op == st and val0 >= max_memory_size)
@@ -1423,6 +1529,7 @@ process_file:;
 			if (pass == 1) generate_machine_instruction(in, pc);
 			else output_count += get_length(in);
 		}
+
 		else if (op == zero) values[arg0] = 0;
 		else if (op == incr) values[arg0] += 1;
 		else if (op == set)  values[arg0] = val1;
@@ -1442,6 +1549,8 @@ process_file:;
 		else if (op == lt) { if (val0  < val1) { *memory = pc; pc = val2; } }
 		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
 		else print_error("invalid CTE operation executed", op, pc, 0);
+
+			//debug_414("cte loop executed after");
 		
 		if (op == ld and val1 == assembler_count) values[arg0] = output_count;
 		if (op == ld and val1 == assembler_data) values[arg0] = output_bytes[val0];
@@ -1456,6 +1565,10 @@ process_file:;
 		if (op == st and val0 == assembler_output_name) {
 			memcpy(output_filename, output_bytes + val1, strlen((char*) (output_bytes + val1)));
 		}
+
+			//debug_414("memio executed");
+
+
 	}}
 
 	format = memory[assembler_output_format];
