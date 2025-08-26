@@ -12,9 +12,8 @@ set i 0001
 set t 1001
 set send 0101
 set save 1101
-set n 0011
 
-set duration 1
+set duration 001
 
 eq 0 0 skipmacros
 
@@ -47,71 +46,52 @@ at transmit
 		rr r_reg r_or data data save 0
 		rs r_store r_sw address data sio_gpio_out
 	
-		(set c0 duration set c1 t delay)
+		set c0 duration set c1 t delay
 	
 		set c0 t set c1 0000_0000_0000_0000_01 li
 		rr r_reg r_xor data data t 0
 		rs r_store r_sw address data sio_gpio_out
 	
-		(set c0 duration set c1 t delay)
+		set c0 duration set c1 t delay
 	
 		set c0 t set c1 0000_0000_0000_0000_01 li
 		rr r_reg r_xor data data t 0
 		rs r_store r_sw address data sio_gpio_out
 
-		(set c0 duration set c1 t delay)
+		set c0 duration set c1 t delay
 	
 		ri r_imm r_srl send send 1
 		set c0 i decrement
 		rb r_branch r_bne i 0 loop
 		del loop
 
-	(set c0 0000_1 set c1 t delay)
+	set c0 0000_1 set c1 t delay
 
 	function_end
 	eq 0 0 ra del ra
 	lt 0 0 transmit
 
 
-at cycle_through_grounds
+
+at flash_leds
 	ld ra 0
 	set on_state c0
 	set c0 ra function_begin
+
 	
-	ri r_imm r_add n 0 0000_1
-
-	at loop
-		set c0 n decrement
-
-		set c0 data set c1 on_state li
-		rs r_store r_sw address data sio_gpio_out
-		(set c0 duration set c1 t delay)
-
-		ri r_imm r_add send 0 1
-		rr r_reg r_sll send send n 0
-		ri r_imm r_xor send send 1111_1111_1111
-		ri r_imm r_sll send send 0000_1
-		ri r_imm r_or send send 0100_0000_0000_0000
-		
-		transmit
-		
-		set c0 data set c1 000000000000000000_11111 li
-		rs r_store r_sw address data sio_gpio_out
+	set c0 data set c1 on_state li
+	rs r_store r_sw address data sio_gpio_out
+	set c0 duration set c1 t delay
 	
-		(set c0 duration set c1 t delay)
-		
-		rb r_branch r_bne 0 n loop 
+	set c0 send set c1 0100_0000_0000_0000___0000_0000_0000_0000 li
+	transmit
+	
+	set c0 data set c1 000000000000000000_11111 li
+	rs r_store r_sw address data sio_gpio_out
 
-	del loop del n
-	del on_state
-
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 cycle_through_grounds
-
-
-
-(
+	set c0 duration set c1 t delay
+	
+	
 	set c0 data set c1 on_state li
 	rs r_store r_sw address data sio_gpio_out
 	set c0 duration set c1 t delay
@@ -120,10 +100,10 @@ at cycle_through_grounds
 	transmit
 	
 	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out
+	rs r_store r_sw address data sio_gpio_out	
 
 
-	set c0 data set c1 on_state li
+	(set c0 data set c1 on_state li
 	rs r_store r_sw address data sio_gpio_out
 	set c0 duration set c1 t delay
 	
@@ -131,8 +111,19 @@ at cycle_through_grounds
 	transmit
 	
 	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out	
-)
+	rs r_store r_sw address data sio_gpio_out	)
+
+
+	del on_state
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 flash_leds
+
+
+
+
+
 
 
 
@@ -150,13 +141,13 @@ set c0 address set c1 reset_base
 set c0 data set c1 1111_1101_1011_1111____1111_1111_1111_1111 li
 rs r_store r_sw address data 0
 
-(set c0 address set c1 clocks_base li
+set c0 address set c1 clocks_base li
 set c0 data set c1 11 li
-rs r_store r_sw address data clock_ref_control)
+rs r_store r_sw address data clock_ref_control
 
-(set c0 address set c1 clocks_base li
-set c0 data set c1 0000_0000_0000_0000___0000_0110 li
-rs r_store r_sw address data clock_ref_div)
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div
 
 set c0 address set c1 io_bank0_base li
 set c0 data set c1 101 li
@@ -190,34 +181,18 @@ rs r_store r_sw address 0 sio_gpio_out
 
 set c0 data set c1 000000000000000000_11111 li
 rs r_store r_sw address data sio_gpio_out
-(set c0 duration set c1 t delay)
+set c0 duration set c1 t delay
 
 at lll
 	(set c0 000000000000000000_01111 flash_leds)
+
 	(set c0 000000000000000000_10111 flash_leds)
+
 	(set c0 000000000000000000_11011 flash_leds)
 
+	set c0 000000000000000000_11101 flash_leds
 
-	set c0 000000000000000000_11110 cycle_through_grounds
-
-	set c0 data set c1 000000000000000000_11110 li
-	rs r_store r_sw address data sio_gpio_out
-	(set c0 duration set c1 t delay)
-	set c0 send set c1 0100_0000_0000_0000__1111_1111_1111_1111 li
-	transmit	
-	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out
-
-	set c0 000000000000000000_11101 cycle_through_grounds
-
-	set c0 data set c1 000000000000000000_11101 li
-	rs r_store r_sw address data sio_gpio_out
-	(set c0 duration set c1 t delay)
-
-	set c0 send set c1 0100_0000_0000_0000__1111_1111_1111_1111 li
-	transmit	
-	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out
+	set c0 000000000000000000_11110 flash_leds
 
 	rj r_jal 0 lll
 
