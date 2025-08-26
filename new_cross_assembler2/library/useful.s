@@ -156,6 +156,7 @@ at ctprintstring
 	lt 0 0 ctprintstring
 
 
+
 at la
 	ld ra 0
 	set destination c0
@@ -167,24 +168,27 @@ at la
 	at valid del valid
 	
 	at pc
-	set offset source_label
-	sub offset pc
-	del pc
+	set immediate source_label
+	sub immediate pc del pc
 
-	ru r_auipc destination 0
+	set bit immediate and bit 0000_0000_0001 sd bit 1101
+	set a immediate sd a 0011 add a bit and a 1111_1111_1111_1111_1111 
+	set b immediate and b 1111_1111_1111
+	del immediate
 
-(todo: do the bitwise operations to extract 
-the top 20 bits of the immediate too!!)
+	ru r_auipc destination a
+	eq 0 b s
+		ri r_imm r_add destination destination b
+	at s del s
 
-	ri r_imm r_add destination destination offset 
-	del offset
-
+	del a del b del bit
 	del destination
 	del source_label
 
 	function_end
 	eq 0 0 ra del ra
 	lt 0 0 la
+
 
 
 at li
@@ -200,6 +204,12 @@ at li
 	lt immediate 0000_0000_0000_0000_0000_0000_0000_0000_1 skip_abort
 		eq 0 0 -1 str "error: argument to li did not fit in a 32-bit number."
 	at skip_abort del skip_abort
+
+	lt 0 immediate general_form
+	lt immediate 0 general_form
+		ri r_imm r_add destination 0 0
+		eq 0 0 return
+	at general_form del general_form
 
 	set bit immediate and bit 0000_0000_0001 sd bit 1101
 	set a immediate sd a 0011 add a bit and a 1111_1111_1111_1111_1111 
@@ -217,6 +227,8 @@ at li
 
 	del source del a del b del bit
 	del destination del immediate
+
+	at return del return
 
 	function_end
 

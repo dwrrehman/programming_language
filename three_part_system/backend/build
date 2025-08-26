@@ -1,0 +1,29 @@
+#!/bin/sh
+# a file for building c source files using the clang c compiler. 
+# updated on 1202410174.184706 by dwrr. 
+
+input_file=c.c
+output_file=run
+
+if [ "release" = "$1" ]; then
+	clang -Ofast $input_file -o $output_file
+
+elif [ "small" = "$1" ]; then
+	clang -Os $input_file -o $output_file
+
+elif [ "clean" = "$1" ]; then
+	rm -rf $output_file
+	rm -rf $output_file.dSYM
+
+elif [ "" = "$1" ]; then 
+	clang -g -O0 -Weverything -Wno-declaration-after-statement -fsanitize=address,undefined $input_file -o $output_file -ferror-limit=1
+
+elif [ "check" = "$1" ]; then 
+	clang --analyze -Weverything -Wno-declaration-after-statement $input_file
+
+else 
+	echo "build: unknown target: $1"
+fi
+
+
+

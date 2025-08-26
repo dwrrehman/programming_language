@@ -1,0 +1,47 @@
+def 4 def 5 def 9 def 10 def 30 def 60 
+def a def b def c def x def s 
+def return
+
+li 4 001
+li 5 101
+li 9 1001
+li 10 0101
+li 30 01111
+li 60 001111
+
+set a 30
+set x a div x 5
+set b 9 sub b x
+set c b mul c 4
+
+ge 10 c s
+	sub c 10
+at s
+
+set x 60
+div x a
+mul x c
+
+reg return 0
+set return x
+
+
+
+eoi
+
+testing constant propgation again using the example from the wiki on const prop:
+
+
+	int a = 30;
+	int b = 9 - (a / 5);
+	int c = b * 4;
+	
+	if (c > 10) {
+	   c = c - 10;
+	}
+	return c * (60 / a);
+
+
+written on 1202508251.173716 by dwrr
+
+
