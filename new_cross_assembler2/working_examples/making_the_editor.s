@@ -22,18 +22,6 @@ at setzero
 	eq 0 0 ra del ra
 	lt 0 0 setzero
 
-at increment
-	ld ra 0
-	ri r_imm r_add c0 c0 1
-	eq 0 0 ra del ra
-	lt 0 0 increment
-
-at decrement
-	ld ra 0
-	ri r_imm r_add c0 c0 1111_1111_1111
-	eq 0 0 ra del ra
-	lt 0 0 decrement
-
 at assign
 	ld ra 0
 	ri r_imm r_add c0 c1 0

@@ -75,7 +75,7 @@ set map_failed 		allones
 
 (ioctl requests)
 
-set request_terminal_window_size  	0001_0110_0010_1110__0001_0000_0000_0010
+set request_window_size  		0001_0110_0010_1110__0001_0000_0000_0010
 set request_get_terminal_attributes	1100_1000_0010_1110__0001_0010_0000_0010
 set request_set_terminal_attributes	0010_1000_0010_1110__0001_0010_0000_0001
 
@@ -310,6 +310,161 @@ addi begin a6_arg0 0 0 0 0
 addi end begin 0 0 0 0
 addi cursor begin 0 0 0 0
 
+mov a6_number a6_ioctl shiftnone movzero 
+mov a6_arg0 stdin shiftnone movzero
+set c0 a6_arg1 set c1 request_get_terminal_attributes a6li 
+addi a6_arg2 a6_sp 0 0 0 0
+svc
+
+memi mem_load 8_bytes temp a6_sp terminal_attributes_localflags
+
+(set c0 terminalsettingsstring 
+set c1 terminalsettingsstring.length 
+writestring 
+set c0 temp printnumber)
+
+set flags echoinput  or  flags canonicalmode
+mov size flags shiftnone movzero
+orr bitwise_and temp temp true size 0 0 
+
+memi mem_store 8_bytes temp a6_sp terminal_attributes_localflags
+
+mov a6_number a6_ioctl shiftnone movzero 
+mov a6_arg0 stdin shiftnone movzero
+set c0 a6_arg1 set c1 request_set_terminal_attributes a6li 
+addi a6_arg2 a6_sp 0 0 0 0
+svc
+
+mov a6_number a6_ioctl shiftnone movzero 
+mov a6_arg0 stdin shiftnone movzero
+set c0 a6_arg1 set c1 request_window_size a6li 
+addi a6_arg2 a6_sp 0 0 0 0
+svc
+
+set c0 windowsizestring set c1 windowsizestring.length writestring
+
+memi mem_load 2_bytes size a6_sp 0
+set c0 size printnumber
+
+set c0 windowsizestring set c1 windowsizestring.length writestring
+
+memi mem_load 2_bytes size a6_sp 1
+set c0 size printnumber
+
+
+at loop
+	(display)
+	(set c0 prompt set c1 prompt.length writestring)
+	set c0 inputchar armreadchar
+	
+	addi 11111 inputchar 'q' 0 1 1
+	bc is_equal done
+
+	addi 11111 inputchar 1111_111 0 1 1
+	bc is_equal delete
+
+	set c0 debugstring set c1 debugstring.length writestring
+	set c0 inputchar printnumber
+
+	(set c0 inputchar armwritechar)
+
+	jmp 0 loop
+
+at delete
+	set c0 deletestring set c1 deletestring.length writestring	
+	jmp 0 loop
+
+at done 
+set c0 endingstring set c1 endingstring.length writestring
+del done del loop
+
+addi a6_sp a6_sp 1 true 0 0
+
+set c0 0 exit
+
+at zerodigit str "0"
+at onedigit  str "1"
+at newlinestring emit 1 newline
+
+at clearscreen
+emit 1 escape str "[H"
+emit 1 escape str "[2J"
+set c0 clearscreen getstringlength
+set clearscreen.length c0
+
+at debugstring str "user input the character: "
+set c0 debugstring getstringlength 
+set debugstring.length c0 
+
+at deletestring str "delete!
+" set c0 deletestring getstringlength 
+set deletestring.length c0 
+
+at prompt str ":ready: "
+set c0 prompt getstringlength 
+set prompt.length c0 
+
+at windowsizestring str "window size: (rows, columns)" emitnl
+set c0 windowsizestring getstringlength
+set windowsizestring.length c0 
+
+at endingstring str "terminating program!" emitnl
+set c0 endingstring getstringlength
+set endingstring.length c0 
+
+
+at terminalsettingsstring str "terminal settings: local flags: "
+set c0 terminalsettingsstring getstringlength
+set terminalsettingsstring.length c0 
+
+
+
+eoi
+
+
+
+
+
+a runtime version of the screen based editor,
+i'm going to try to use the arm64 backend to remake the editor nowwww
+hopefully this goes welllll
+
+written on 1202508203.051022 by dwrr
+
+got mmap working and the display function started on 1202508214.043954
+
+
+
+got multiple macro call instance with forward branches in macro body   working on 1202508225.230651
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -402,175 +557,6 @@ svc
 
 
 )
-
-
-
-
-
-mov a6_number a6_ioctl shiftnone movzero 
-mov a6_arg0 stdin shiftnone movzero
-set c0 a6_arg1 set c1 request_get_terminal_attributes a6li 
-addi a6_arg2 a6_sp 0 0 0 0
-svc
-
-memi mem_load 8_bytes temp a6_sp terminal_attributes_localflags
-
-(set c0 terminalsettingsstring 
-set c1 terminalsettingsstring.length 
-writestring 
-set c0 temp printnumber)
-
-set flags echoinput  or  flags canonicalmode
-mov size flags shiftnone movzero
-orr bitwise_and temp temp true size 0 0 
-
-memi mem_store 8_bytes temp a6_sp terminal_attributes_localflags
-
-mov a6_number a6_ioctl shiftnone movzero 
-mov a6_arg0 stdin shiftnone movzero
-set c0 a6_arg1 set c1 request_set_terminal_attributes a6li 
-addi a6_arg2 a6_sp 0 0 0 0
-svc
-
-
-
-
-
-
-
-
-mov a6_number a6_ioctl shiftnone movzero 
-mov a6_arg0 stdin shiftnone movzero
-set c0 a6_arg1 set c1 request_window_size a6li 
-addi a6_arg2 a6_sp 0 0 0 0
-svc
-
-set c0 windowsizestring set c1 windowsizestring.length writestring
-
-memi mem_load 2_bytes size a6_sp 0
-set c0 size printnumber
-
-set c0 windowsizestring set c1 windowsizestring.length writestring
-
-memi mem_load 2_bytes size a6_sp 1
-set c0 size printnumber
-
-
-at loop
-	(display)
-	(set c0 prompt set c1 prompt.length writestring)
-	set c0 inputchar armreadchar
-	
-	addi 11111 inputchar 'q' 0 1 1
-	bc is_equal done
-
-	addi 11111 inputchar 1111_111 0 1 1
-	bc is_equal delete
-
-	(set c0 debugstring set c1 debugstring.length writestring
-	set c0 inputchar printnumber)
-
-	set c0 inputchar armwritechar
-
-	jmp 0 loop
-
-at delete
-	set c0 deletestring set c1 deletestring.length writestring	
-	jmp 0 loop
-
-at done 
-set c0 endingstring set c1 endingstring.length writestring
-del done del loop
-
-addi a6_sp a6_sp 1 true 0 0
-
-set c0 0 exit
-
-
-at zerodigit str "0"
-at onedigit  str "1"
-at newlinestring emit 1 newline
-
-at clearscreen
-emit 1 escape str "[H"
-emit 1 escape str "[2J"
-set c0 clearscreen getstringlength
-set clearscreen.length c0
-
-at debugstring str "user input the character: "
-set c0 debugstring getstringlength 
-set debugstring.length c0 
-
-at deletestring str "delete!
-" set c0 deletestring getstringlength 
-set deletestring.length c0 
-
-at prompt str ":ready: "
-set c0 prompt getstringlength 
-set prompt.length c0 
-
-at windowsizestring str "window size: (rows, columns)" emitnl
-set c0 windowsizestring getstringlength
-set windowsizestring.length c0 
-
-at endingstring str "terminating program!" emitnl
-set c0 endingstring getstringlength
-set endingstring.length c0 
-
-
-at terminalsettingsstring str "terminal settings: local flags: "
-set c0 terminalsettingsstring getstringlength
-set terminalsettingsstring.length c0 
-
-
-
-eoi
-
-
-
-
-
-a runtime version of the screen based editor,
-i'm going to try to use the arm64 backend to remake the editor nowwww
-hopefully this goes welllll
-
-written on 1202508203.051022 by dwrr
-
-got mmap working and the display function started on 1202508214.043954
-
-
-
-got multiple macro call instance with forward branches in macro body   working on 1202508225.230651
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

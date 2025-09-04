@@ -90,3 +90,6 @@ eoi
 
 
 this was ported from the compilers stdlib to this assembler, it basically works the same though i think lol 
+
+
+

@@ -1,602 +1,117 @@
-(a program to output spi via sio only)
+(
+	use the low power modes to sleep at 680 uA.. 
+	trying to get this even lower.. 
+)
 
-file library/core.s
-file library/useful.s
-file library/rp2350.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
 
 str "firmware.uf2" set_output_name
 
-set data 01
-set address 001
-set i 0001
-set t 1001
-set send 0101
-set save 1101
-set n 0011
+(program register allocations)
 
-set duration 1
-
-eq 0 0 skipmacros
-
-at delay
-	ld ra 0
-	set time c0
-	set local_i c1
-	set c0 ra function_begin
-	set c0 local_i set c1 time li
-	at l
-		set c0 local_i decrement
-		rb r_branch r_bne local_i 0 l
-	del l del local_i del time
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 delay	
-
-
-at transmit
-	ld ra 0
-	set c0 ra function_begin
-	
-	set c0 i set c1 0000_01 li
-
-	rr r_reg r_add save data 0 0
-
-	at loop
-		ri r_imm r_and t send 1
-		ri r_imm r_sll data t 0000_1
-		rr r_reg r_or data data save 0
-		rs r_store r_sw address data sio_gpio_out
-	
-		(set c0 duration set c1 t delay)
-	
-		set c0 t set c1 0000_0000_0000_0000_01 li
-		rr r_reg r_xor data data t 0
-		rs r_store r_sw address data sio_gpio_out
-	
-		(set c0 duration set c1 t delay)
-	
-		set c0 t set c1 0000_0000_0000_0000_01 li
-		rr r_reg r_xor data data t 0
-		rs r_store r_sw address data sio_gpio_out
-
-		(set c0 duration set c1 t delay)
-	
-		ri r_imm r_srl send send 1
-		set c0 i decrement
-		rb r_branch r_bne i 0 loop
-		del loop
-
-	(set c0 0000_1 set c1 t delay)
-
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 transmit
-
-
-at cycle_through_grounds
-	ld ra 0
-	set on_state c0
-	set c0 ra function_begin
-	
-	ri r_imm r_add n 0 0000_1
-
-	at loop
-		set c0 n decrement
-
-		set c0 data set c1 on_state li
-		rs r_store r_sw address data sio_gpio_out
-		(set c0 duration set c1 t delay)
-
-		ri r_imm r_add send 0 1
-		rr r_reg r_sll send send n 0
-		ri r_imm r_xor send send 1111_1111_1111
-		ri r_imm r_sll send send 0000_1
-		ri r_imm r_or send send 0100_0000_0000_0000
-		
-		transmit
-		
-		set c0 data set c1 000000000000000000_11111 li
-		rs r_store r_sw address data sio_gpio_out
-	
-		(set c0 duration set c1 t delay)
-		
-		rb r_branch r_bne 0 n loop 
-
-	del loop del n
-	del on_state
-
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 cycle_through_grounds
-
-
-
-(
-	set c0 data set c1 on_state li
-	rs r_store r_sw address data sio_gpio_out
-	set c0 duration set c1 t delay
-	
-	set c0 send set c1 0100_0000_0001_0100__1111_1111_1111_1111 li
-	transmit
-	
-	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out
-
-
-	set c0 data set c1 on_state li
-	rs r_store r_sw address data sio_gpio_out
-	set c0 duration set c1 t delay
-	
-	set c0 send set c1 0100_0000_0001_0100___0000_0000_0000_0000 li
-	transmit
-	
-	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out	
-)
-
-
-
-
-at skipmacros del skipmacros
-
-
-
+set led_state 	1
+set data 	01
+set ram 	11
+set address 	001
+set temp	101
 
 rp2350
 sect flash_start
 start_rp2350_binary
 
-set c0 address set c1 reset_base
+set c0 address set c1 powman_base li
+set n 0000_1111_0000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+
+at main rj r_jal 0 main
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+eoi
+
+
+
+
+
+
+
+
+
+(set c0 address set c1 reset_base
 set c0 data set c1 1111_1101_1011_1111____1111_1111_1111_1111 li
 rs r_store r_sw address data 0
-
-set c0 address set c1 clocks_base li
-set c0 data set c1 11 li
-rs r_store r_sw address data clock_ref_control
-
-(set c0 address set c1 clocks_base li
-set c0 data set c1 0000_0000_0000_0000___0000_0110 li
-rs r_store r_sw address data clock_ref_div)
 
 set c0 address set c1 io_bank0_base li
 set c0 data set c1 101 li
 rs r_store r_sw address data io_gpio16_ctrl
-rs r_store r_sw address data io_gpio17_ctrl
-rs r_store r_sw address data io_gpio18_ctrl
-rs r_store r_sw address data io_gpio19_ctrl
-rs r_store r_sw address data io_gpio20_ctrl
-rs r_store r_sw address data io_gpio21_ctrl
-rs r_store r_sw address data io_gpio22_ctrl
 rs r_store r_sw address data io_gpio23_ctrl
 
 set c0 address set c1 pads_bank0_base li
 set c0 data set c1 0100_111 li
 rs r_store r_sw address data pads_gpio16
-rs r_store r_sw address data pads_gpio17
-rs r_store r_sw address data pads_gpio18
-rs r_store r_sw address data pads_gpio19
-rs r_store r_sw address data pads_gpio20
-rs r_store r_sw address data pads_gpio21
-rs r_store r_sw address data pads_gpio22
 rs r_store r_sw address data pads_gpio23
 
-(set c0 data set c1 0100_001 li
-rs r_store r_sw address data pads_gpio4)
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_0000_0000_0000___1000_0001_0000_0000 li
+rs r_store r_sw address data sio_gpio_oe
+rs r_store r_sw address 0 sio_gpio_out)
+
+
+
+
+
+
+
+
+
 
 set c0 address set c1 sio_base li
-set c0 data set c1 0000_0000_0000_0000___1111_1111_0000_0000 li
-rs r_store r_sw address data sio_gpio_oe
+at times
+
+set c0 data set c1 0000_0000_0000_0000_1 li
+rs r_store r_sw address data sio_gpio_out
+
+set i temp
+set c0 i set c1 0000_0000_0000_0000_0001 li
+at l
+	ri r_imm r_add i i 1111_1111_1111
+	rb r_branch r_bne i 0 l
+del l del i
+
 rs r_store r_sw address 0 sio_gpio_out
 
-set c0 data set c1 000000000000000000_11111 li
-rs r_store r_sw address data sio_gpio_out
-(set c0 duration set c1 t delay)
-
-at lll
-	(set c0 000000000000000000_01111 flash_leds)
-	(set c0 000000000000000000_10111 flash_leds)
-	(set c0 000000000000000000_11011 flash_leds)
-
-
-	set c0 000000000000000000_11110 cycle_through_grounds
-
-	set c0 data set c1 000000000000000000_11110 li
-	rs r_store r_sw address data sio_gpio_out
-	(set c0 duration set c1 t delay)
-	set c0 send set c1 0100_0000_0000_0000__1111_1111_1111_1111 li
-	transmit
-	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out
-
-	set c0 000000000000000000_11101 cycle_through_grounds
-
-	set c0 data set c1 000000000000000000_11101 li
-	rs r_store r_sw address data sio_gpio_out
-	(set c0 duration set c1 t delay)
-
-	set c0 send set c1 0100_0000_0000_0000__1111_1111_1111_1111 li
-	transmit	
-	set c0 data set c1 000000000000000000_11111 li
-	rs r_store r_sw address data sio_gpio_out
-
-	rj r_jal 0 lll
-
-eoi
-
-working bitbang spi solution wrote on 1202508155.061604 by dwrr
-
-
-1202508155.070555
-
-	JUST GOT IT WORKING YAYYYYYY I GOT AN LED TURNED ON VIA THE GPIO CONTROLLERRRR YAYYYYYYYY
-
-
-
-
-1202508155.205855
-	adjusted the pins to account for the actual display's wiring!
-
-	going to test out the program again on the actual display itself now!!! lets see if it works!!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	(set c0 data set c1 1100 li
-	rs r_store r_sw address data sio_gpio_out)
-
-	(set c0 data set c1 0011 li
-	rs r_store r_sw address data sio_gpio_out)
-
-
-
-
-(set c0 i set c1 001 li
-
-at loop
-	set c0 data set c1 1111 li
-	rs r_store r_sw address data sio_gpio_out
-
-	set c0 duration set c1 t delay
-
-	rs r_store r_sw address 0 sio_gpio_out
-
-	set c0 duration set c1 t delay
-
-	set c0 i decrement
-	rb r_branch r_bne i 0 loop 
-	del loop
-)
-
-
-
-
-
-
-
-
-
-
-
-	(set c0 data set c1 0001 li
-	rs r_store r_sw address data sio_gpio_out)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-at lll
-	(set c0 data set c1 1100 li
-	rs r_store r_sw address data sio_gpio_out)
-
-	(set c0 data set c1 0011 li
-	rs r_store r_sw address data sio_gpio_out)
-
-
-	rr r_reg r_add 0 0 0 0 
-
-
-	rj r_jal 0 lll
-
-eoi
-
-
-
-
-
-
-(gpio pins : spi functions:
-
-	0 is RX input
-	1 is TX output
-	2 is clock output
-	3 is chipselect
-
-	4 is alternate chip select (or something else)
-
-)
-
-
-set i 0001
-set t 1001
-set send 0101
-
-set duration 0000_001
-
-set c0 i set c1 001 li
-
-at loop
-	set c0 data set c1 1111 li
-	rs r_store r_sw address data sio_gpio_out
-	set c0 duration set c1 t delay
-	rs r_store r_sw address 0 sio_gpio_out
-	set c0 duration set c1 t delay
-	set c0 i decrement
-	rb r_branch r_bne i 0 loop 
-	del loop
-
-
-set c0 send set c1 1011_0101_1101_0001 li
-set c0 data set c1 0001 li
-rs r_store r_sw address data sio_gpio_out
-set c0 0000_0001 set c1 t delay
-set c0 data set c1 0000_1 li
-rs r_store r_sw address data sio_gpio_out
-set c0 0000_01 set c1 t delay
-set c0 i set c1 0000_1 li
-at loop
-	ri r_imm r_and t send 1
-	ri r_imm r_sll data t 1
-	rs r_store r_sw address data sio_gpio_out
-
-	set c0 duration set c1 t delay
-
-	ri r_imm r_xor data data 001
-	rs r_store r_sw address data sio_gpio_out
-
-	set c0 duration set c1 t delay
-
-	ri r_imm r_xor data data 001
-	rs r_store r_sw address data sio_gpio_out
-	set c0 duration set c1 t delay
-	ri r_imm r_srl send send 1
-	set c0 i decrement
-	rb r_branch r_bne i 0 loop
-	del loop
-
-set c0 0000_1 set c1 t delay
-set c0 data set c1 0001 li
-rs r_store r_sw address data sio_gpio_out
-
-
-at mainloop
-
-rj r_jal 0 mainloop
-
-
-
-eoi
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(set led_state 	1
-set ram 	11
-set temp	101)
-
-
-
-
-
-
-
-	(set c0 address set c1 io_bank0_base li
-	set c0 data set c1 1 li
-	rs r_store r_sw address data io_gpio0_ctrl
-	rs r_store r_sw address data io_gpio1_ctrl
-	rs r_store r_sw address data io_gpio2_ctrl
-	rs r_store r_sw address data io_gpio3_ctrl
+set i temp
+set c0 i set c1 0000_0000_0000_0000_0001 li
+at l
+	ri r_imm r_add i i 1111_1111_1111
+	rb r_branch r_bne i 0 l
+del l del i
 	
-	set c0 address set c1 pads_bank0_base li
-	set c0 data set c1 01 li
-	rs r_store r_sw address data pads_gpio0
-	rs r_store r_sw address data pads_gpio1
-	rs r_store r_sw address data pads_gpio2
-	rs r_store r_sw address data pads_gpio3)
+rj r_jal 0 times
+
+
+eoi
 
 
 
@@ -608,9 +123,182 @@ set temp	101)
 
 
 
-(set c0 ram set c1 sram_start li
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1202509022.014214   rewritten to use the modern way of doing rp2350 programs
+
+also, i'm trying to figure out why its not as low power as it should be...
+
+
+
+
+
+
+
+
+
+
+
+
+
+do blink sleep sequence:
+
+
+
+(
+
+set c0 ram set c1 sram_start li
+ri r_load r_lw led_state ram 0
+ri r_imm r_xor led_state led_state 1
+ri r_imm r_and led_state led_state 1
+
+set c0 address set c1 sio_base li
+ri r_imm r_sll data led_state 0000_1
+rs r_store r_sw address data sio_gpio_out
+rs r_store r_sw ram led_state 0
+
 set c0 address set c1 powman_base li
-i r_load r_lw data address last_swcore_pwrup
+set n 1000_0110_1000_0000 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+set n 0000_0000_001 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data alarm_time_15to0
+
+set n 1110_1110_1000_0000 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+)
+
+
+
+
+
+
+check boot:
+
+
+
+(set c0 address set c1 powman_base li
+ri r_load r_lw data address last_swcore_pwrup
+ri r_imm r_add temp 0 1
+rb r_branch r_bne data temp skip_boot
+
+	(ri r_imm r_add led_state 0 0
+	rs r_store r_sw ram led_state 0
+
+	set c0 address set c1 sio_base li
+	set j 00001
+	set c0 j set c1 0001 li
+
+	at times
+
+	set c0 data set c1 0000_0000_0000_0000_1 li
+	rs r_store r_sw address data sio_gpio_out
+
+	set i temp
+	set c0 i set c1 0000_0000_0000_0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+	rs r_store r_sw address 0 sio_gpio_out
+
+	set i temp
+	set c0 i set c1 0000_0000_0000_0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	
+	ri r_imm r_add j j 1111_1111_1111
+	rb r_branch r_bne j 0 times)
+	
+at skip_boot del skip_boot)
+
+
+
+
+
+
+
+
+
+
+
+
+
+change clocks:
+
+
+(set c0 address set c1 clocks_base li
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
+
+set c0 address set c1 clocks_base li
+set c0 data set c1 0000_0000_0000_0000___0000_0110 li
+rs r_store r_sw address data clock_ref_div)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set c0 address set c1 reset_clear li
+set c0 data set c1 0000_0010_01 li
+rs r_store r_sw address data 0
+
+
+
+
+set c0 address set c1 sio_base li
+set c0 data set c1 1 (1111_1111__1111_1111__1111_1111__1111_1100) li
+rs r_store r_sw address data sio_gpio_oe
+
+(set c0 data set c1 0 li)
+rs r_store r_sw address 0 sio_gpio_out
+
+set c0 ram set c1 sram_start li
+set c0 address set c1 powman_base li
+ri r_load r_lw data address last_swcore_pwrup
 ri r_imm r_add temp 0 1
 rb r_branch r_bne data temp skip_boot
 
@@ -618,96 +306,67 @@ rb r_branch r_bne data temp skip_boot
 	rs r_store r_sw ram led_state 0
 
 	set c0 address set c1 sio_base li
-
 	set j 00001
 	set c0 j set c1 0001 li
 	at times
-
-	set c0 data set c1 0000_1 li
+	set c0 data set c1 1 li
 	rs r_store r_sw address data sio_gpio_out
 
 	set i temp
-	set c0 i set c1 0000_001 li
+	set c0 i set c1 0000_0000_0000_0000_0001 li
 	at l
-		set c0 i decrement
+		ri r_imm r_add i i 1111_1111_1111
 		rb r_branch r_bne i 0 l
 	del l del i
 
+	(set c0 data set c1 0 li)
 	rs r_store r_sw address 0 sio_gpio_out
 
 	set i temp
-	set c0 i set c1 0000_001 li  (0000_0000_0000_0000_001)
+	set c0 i set c1 0000_0000_0000_0000_0001 li
 	at l
-		set c0 i decrement
+		ri r_imm r_add i i 1111_1111_1111
 		rb r_branch r_bne i 0 l
 	del l del i
 	
-	set c0 j decrement
-	rb r_branch r_bne j 0 times del times
-
-
-
-	(test out the spi controller...)
-
-	(set c0 j set c1 000_1 li
-	at times
-
-
-	set c0 address set c1 spi0_base li
-	
-	set c0 data set c1 1111_1111_1111_1110 li
-	rs r_store r_sw address data spi0_data
-	
-	set c0 data set c1 1111_0000_1111_1111 li
-	rs r_store r_sw address data spi0_control0
-	
-	set c0 data set c1 01 li
-	rs r_store r_sw address data spi0_prescale
-	
-	set c0 data set c1 01 li
-	rs r_store r_sw address data spi0_control1
-
-
-	set i temp
-	set c0 i set c1 0000_001 li  (0000_0000_0000_0000_001)
-	at l
-		set c0 i decrement
-		rb r_branch r_bne i 0 l
-	del l del i
-	
-	set c0 j decrement
-	rb r_branch r_bne j 0 times del times)
-
+	ri r_imm r_add j j 1111_1111_1111
+	rb r_branch r_bne j 0 times
 	
 at skip_boot del skip_boot
 
 ri r_load r_lw led_state ram 0
-ri r_imm r_xor led_state led_state 0000_1
-ri r_imm r_and led_state led_state 0000_1
+ri r_imm r_xor led_state led_state 1
+ri r_imm r_and led_state led_state 1
 
 set c0 address set c1 sio_base li
 rs r_store r_sw address led_state sio_gpio_out
 rs r_store r_sw ram led_state 0
 
 set c0 address set c1 powman_base li
-set n 1000_0110_1000_0000 add n powman_password
+
+	(set initial the timer config, allow nonsecure writes)
+set n 1000_0110_1000_0000 add n powman_password 
 set c0 data set c1 n li
 rs r_store r_sw address data powman_timer
+
+
+	(set the alarm duration of time, after which we will wake up  :   1000 milliseconds, == 1 second)
+	(on reset, all the other alarm value registers are 0)
 set n 0000_0000_001 add n powman_password 
 set c0 data set c1 n li
 rs r_store r_sw address data alarm_time_15to0
+
+	(start the alarm timer to wake up in that amount of time)
 set n 1110_1110_1000_0000 add n powman_password 
+
 set c0 data set c1 n li
 rs r_store r_sw address data powman_timer
+
+	(request the new low power state P1.4, write password protected state register)
 set n 0000_0011_0000_0000  add n powman_password
 set c0 data set c1 n li
 rs r_store r_sw address data powman_state
-
 processor_sleep
-
-
-
-
 
 
 
@@ -716,87 +375,23 @@ eoi
 
 
 
-1202508133.234841
-this is a rewrite that tries to use the spi hardware periheral unsuccessfully again lol... 
-
-	i can get it so that the spi peri is able to control the CSn line, and probably also the clock and data lines too, but those are silent so they dont do anything... 
-
-	i must be not understanding how to intiate a spi transfer basically.. the arm documentation is not clear at all. 
-
-
-	
 
 
 
 
-	
 
 
 
 
-	
 
 
 
 
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
-
-
-
-	
 
 
 
 
-(at setif
-	ld ra 0 lt 0 0 setif
-	set a c0 set b c1 
-	set c c2 set d c3
-	lt a b l lt b a l st c d
-	at l del l del a del b  
-	del c del d eq 0 0 ra del ra 
-)
-
-
-
-
-1202507292.234007  got the low power modes working!!! YAYYYYY
+1202507292.234007  got this working!!! YAYYYYY
 it still consumes 0.68mA  ie  680 microamps, so we still have some additional work to do, 
 
 	but we are getting there :)
@@ -806,18 +401,18 @@ it still consumes 0.68mA  ie  680 microamps, so we still have some additional wo
 
 
 
-	(set initial the timer config, allow nonsecure writes)
-
-	(request the new low power state P1.4, write password protected state register)
-
-
-	(set the alarm duration of time, after which we will wake up  :   1000 milliseconds, == 1 second)
-	(on reset, all the other alarm value registers are 0)
 
 
 
 
-	(start the alarm timer to wake up in that amount of time)
+
+
+
+
+
+
+
+(
 
 
 (set sleep_en0 0010_1101
@@ -830,9 +425,6 @@ rs r_store r_sw address 0 sleep_en0
 set c0 address set c1 clocks_base li
 set c0 data set c1 0000_1111_1111_1100__0000_0000_0000_0000 li
 rs r_store r_sw address data sleep_en1)
-
-
-(
 	current state:
 
 		1202508041.202313
@@ -842,6 +434,17 @@ rs r_store r_sw address data sleep_en1)
 
 
 )
+
+
+
+
+(set i 0
+at loop
+	set c0 i setup_output
+	add i 1
+	lt i 01111 loop del loop del i)
+
+
 
 
 

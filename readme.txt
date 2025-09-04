@@ -558,10 +558,10 @@ msp430:
 
 
 ---------------------------------------------------------
-	mo  opcode.4    destination_mode.1    
-		destination_register.4     
+	mo  opcode.4    destination_mode.1
+		destination_register.1
 		destination_immediate.16 
-		source_mode.2    source_register.4    
+		source_mode.2    source_register.4
 		source_immediate.16     is_8bit.1
 ---------------------------------------------------------
 

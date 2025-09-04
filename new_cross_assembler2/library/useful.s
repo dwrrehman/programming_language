@@ -81,7 +81,6 @@ at arm64
 	ld ra 0
 	set c0 ra function_begin
 
-
 	set target arm64_arch
 	st output_format macho_executable
 	st overwrite_output true
@@ -235,6 +234,8 @@ at li
 	eq 0 0 ra del ra
 	lt 0 0 li
 
+
+
 at exit
 	ld ra 0
 	set code c0
@@ -287,6 +288,7 @@ at writestring
 		svc
 	
 	eq 0 0 return
+
 	at riscv_writestring
 
 		ri r_imm r_add r_number 0 r_write
@@ -348,7 +350,6 @@ at writechar
 
 
 
-
 at writebuffer 
 	ld ra 0
 	set pointer_register c0
@@ -370,6 +371,8 @@ at writebuffer
 	del pointer_register del length_register
 	lt 0 0 writebuffer
 
+
+
 at getstringlength
 	ld ra 0
 	set arg c0
@@ -382,7 +385,6 @@ at getstringlength
 	set c0 arg
 	del here del begin
 	
-
 	function_end
 	eq 0 0 ra del ra del arg
 	lt 0 0 getstringlength
@@ -443,7 +445,7 @@ at readstring
 	set c0 ra function_begin
 
 	eq target riscv_arch valid
-		eq 0 0 -1 str "error: writebuffer only supports riscv currrently"
+		eq 0 0 -1 str "error: writebuffer only supports riscv currrently" 
 	at valid del valid
 
 	set string c0
@@ -460,7 +462,7 @@ at readstring
 	lt 0 0 readstring
 
 
-at stringsequal 
+at stringsequal
 	ld ra 0
 	set c0 ra function_begin
 

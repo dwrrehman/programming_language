@@ -844,19 +844,15 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 
 		} else if (op == rj) {
-
 			if (a0 >= (1LLU << 7LLU)) { puts("rj error"); abort(); } 
 			if (a1 >= (1LLU << 5LLU)) { puts("rj error"); abort(); } 
 			if (a2 >= (1LLU << 21LLU)) { puts("rj error"); abort(); } // TODO: this check isnt pc-relative...
-
-			nat im = (a2 - output_count) & 0x1fffff;			
-
+			nat im = (a2 - output_count) & 0x1fffff;
 			const nat bit10_1  = (im >> 1U) & 0x3FF;
 			const nat bit19_12 = (im >> 12U) & 0xFF;
 			const nat bit11   = (im >> 11U) & 0x1;
 			const nat bit20   = (im >> 20U) & 0x1;
 			const nat offset = (bit20 << 31U) | (bit10_1 << 21U) | (bit11 << 20U) | (bit19_12 << 12U);
-
 			const nat word =
 				(offset) |
 				(a1 <<  7U) |
@@ -864,45 +860,43 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			insert_u32((u32) word);
 
 
-
 		} else if (op == mb) {
-			//TODO: check arguments to this instruction!
-
-			const nat offset = 0x3FF & (a1 - output_count);   //TODO: fix this
-			const nat word = ((1LLU << 13LLU) | (a0 << 10LLU) | (offset));
-
+			if (a0 >= (1LLU << 3LLU)) print_error("mb: invalid 3-bit condition", a0, pc, 1);
+			//if (a1 >= (1LLU << 11LLU)) print_error("mb: invalid 11-bit label", a1, pc, 2);
+			const nat offset = ((a1 - output_count - 2) >> 1LLU) & 0x3FF;
+			const nat word = 
+				(1LLU << 13LLU) | 
+				(a0 << 10LLU) | 
+				(offset << 0LLU);
 			insert_u16((u16) word);
-
 
 		} else if (op == mo) {
-			//TODO: check arguments to this instruction!
-
-			nat word = (
-				(a0 << 12LLU) | (a5 << 8LLU) | (a1 << 7LLU) |
-				(a7 << 6LLU) | (a4 << 4LLU) | (a2)
-			);
-
+			if (a0 >= (1LLU <<  4LLU)) print_error("mo: invalid 4-bit op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  1LLU)) print_error("mo: invalid 1-bit destination mode", a1, pc, 2);
+			if (a2 >= (1LLU <<  4LLU)) print_error("mo: invalid 4-bit destination register", a2, pc, 3);
+			if (a3 >= (1LLU << 16LLU)) print_error("mo: invalid 16-bit destination immediate", a3, pc, 4);
+			if (a4 >= (1LLU <<  2LLU)) print_error("mo: invalid 2-bit source mode", a4, pc, 5);
+			if (a5 >= (1LLU <<  4LLU)) print_error("mo: invalid 4-bit source register", a5, pc, 6);
+			if (a6 >= (1LLU << 16LLU)) print_error("mo: invalid 16-bit source immediate", a6, pc, 7);
+			if (a7 >= (1LLU <<  1LLU)) print_error("mo: invalid 1-bit is-8-bit flag", a7, pc, 8);
+			nat word = 
+				(a0 << 12LLU) |
+				(a5 << 8LLU) |
+				(a1 << 7LLU) |
+				(a7 << 6LLU) |
+				(a4 << 4LLU) |
+				(a2 << 0LLU) ;
 			insert_u16((u16) word);
-
 			if ((a4 == 1 and (a5 != 2 and a5 != 3))
 				or (a4 == 3 and not a5)) insert_u16((u16) a6);
-
 			if (a1 == 1) insert_u16((u16) a3);
 
-
-
 		} else if (op == clz) { puts("clz is unimplemented currently, lol"); abort(); }
-
 		else if (op == rev) { puts("rev is unimplemented currently, lol"); abort(); }
-
 		else if (op == extr) { puts("extr is unimplemented currently, lol"); abort(); }
-
 		else if (op == ldrl) { puts("ldrl is unimplemented currently, lol"); abort(); }
-
 		else if (op == nop) insert_u32(0xD503201F);
-
 		else if (op == svc) insert_u32(0xD4000001);
-
 
 		else if (op == br) {
 			if (a1 >= 1LLU << 2LLU) print_error("br: 2-bit indirect branch type", a1, pc, 2);
@@ -1557,7 +1551,7 @@ process_file:;
 		if (op == ld and val1 == assembler_count) values[arg0] = output_count;
 		if (op == ld and val1 == assembler_data) values[arg0] = output_bytes[val0];
 		if (op == ld and val1 == assembler_read)  values[arg0] = read_char();
-		if (op == st and val0 == assembler_count) output_count = val1;		
+		if (op == st and val0 == assembler_count) output_count = val1;
 		if (op == st and val0 == assembler_write) { char c = (char) val1; write(1, &c, 1); }
 		if (op == st and val0 == assembler_open) {
 			nat text_length = 0;
