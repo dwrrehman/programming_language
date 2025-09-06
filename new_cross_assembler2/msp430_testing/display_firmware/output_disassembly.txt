@@ -1,0 +1,161 @@
+printing the text: 
+text 0x104f03980 @ 617 chars...
+set address of section #0 to be 49152...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+set address of section #1 to be 65508...
+FOUND 10...
+set address of section #2 to be 65524...
+FOUND 10...
+set address of section #3 to be 65534...
+FOUND 10...
+found terminating character, q.
+printing 4 sections: 
+section #0: .address = 0xc000, .length = 186 :: 
+	[31] [40] [bf] [03] [b2] [40] [80] [5a] [20] [01] [f2] [40] [e0] [00] [56] [00] 
+	[f2] [40] [8f] [00] [57] [00] [f2] [40] [25] [00] [53] [00] [f2] [40] [ff] [00] 
+	[2a] [00] [f2] [40] [00] [00] [29] [00] [f2] [40] [00] [00] [2e] [00] [f2] [40] 
+	[fe] [00] [22] [00] [f2] [40] [01] [00] [21] [00] [f2] [40] [01] [00] [27] [00] 
+	[f2] [40] [00] [00] [26] [00] [f2] [d0] [01] [00] [25] [00] [f2] [d0] [01] [00] 
+	[24] [00] [b2] [40] [1f] [5a] [20] [01] [f2] [d0] [01] [00] [00] [00] [f2] [c0] 
+	[01] [00] [02] [00] [32] [d0] [f8] [00] [04] [44] [f2] [d0] [01] [00] [29] [00] 
+	[34] [40] [0f] [00] [35] [40] [ff] [ff] [15] [73] [fe] [23] [14] [73] [fa] [23] 
+	[f2] [c0] [01] [00] [29] [00] [34] [40] [0f] [00] [35] [40] [ff] [ff] [15] [73] 
+	[fe] [23] [14] [73] [fa] [23] [e6] [3f] [04] [44] [f2] [e0] [01] [00] [29] [00] 
+	[f2] [c0] [01] [00] [02] [00] [00] [13] [04] [44] [f2] [e0] [01] [00] [29] [00] 
+	[f2] [c0] [01] [00] [23] [00] [00] [13] [04] [44] [end of section]
+section #1: .address = 0xffe4, .length = 2 :: 
+	[aa] [c0] [end of section]
+section #2: .address = 0xfff4, .length = 2 :: 
+	[9a] [c0] [end of section]
+section #3: .address = 0xfffe, .length = 2 :: 
+	[00] [c0] [end of section]
+[done]
+heres the text too...
+@c000
+31 40 BF 03 B2 40 80 5A 20 01 F2 40 E0 00 56 00 
+F2 40 8F 00 57 00 F2 40 25 00 53 00 F2 40 FF 00 
+2A 00 F2 40 00 00 29 00 F2 40 00 00 2E 00 F2 40 
+FE 00 22 00 F2 40 01 00 21 00 F2 40 01 00 27 00 
+F2 40 00 00 26 00 F2 D0 01 00 25 00 F2 D0 01 00 
+24 00 B2 40 1F 5A 20 01 F2 D0 01 00 00 00 F2 C0 
+01 00 02 00 32 D0 F8 00 04 44 F2 D0 01 00 29 00 
+34 40 0F 00 35 40 FF FF 15 73 FE 23 14 73 FA 23 
+F2 C0 01 00 29 00 34 40 0F 00 35 40 FF FF 15 73 
+FE 23 14 73 FA 23 E6 3F 04 44 F2 E0 01 00 29 00 
+F2 C0 01 00 02 00 00 13 04 44 F2 E0 01 00 29 00 
+F2 C0 01 00 23 00 00 13 04 44 
+@ffe4
+AA C0 
+@fff4
+9A C0 
+@fffe
+00 C0 
+q
+
+dissassembly of section #0: [address=0x0000c000], [length=186]
+0000c000:   4031 03bf      	MOV.W	SP <-- #0x3bf
+
+0000c004:   40b2 5a80 0120 	MOV.W	(SR + 0x0120) <-- #0x5a80
+
+0000c00a:   40f2 00e0 0056 	MOV.B	(SR + 0x0056) <-- #0xe0
+
+0000c010:   40f2 008f 0057 	MOV.B	(SR + 0x0057) <-- #0x8f
+
+0000c016:   40f2 0025 0053 	MOV.B	(SR + 0x0053) <-- #0x25
+
+0000c01c:   40f2 00ff 002a 	MOV.B	(SR + 0x002a) <-- #0xff
+
+0000c022:   40f2 0000 0029 	MOV.B	(SR + 0x0029) <-- #0x0
+
+0000c028:   40f2 0000 002e 	MOV.B	(SR + 0x002e) <-- #0x0
+
+0000c02e:   40f2 00fe 0022 	MOV.B	(SR + 0x0022) <-- #0xfe
+
+0000c034:   40f2 0001 0021 	MOV.B	(SR + 0x0021) <-- #0x1
+
+0000c03a:   40f2 0001 0027 	MOV.B	(SR + 0x0027) <-- #0x1
+
+0000c040:   40f2 0000 0026 	MOV.B	(SR + 0x0026) <-- #0x0
+
+0000c046:   d0f2 0001 0025 	BIS.B	(SR + 0x0025) <-- #0x1
+
+0000c04c:   d0f2 0001 0024 	BIS.B	(SR + 0x0024) <-- #0x1
+
+0000c052:   40b2 5a1f 0120 	MOV.W	(SR + 0x0120) <-- #0x5a1f
+
+0000c058:   d0f2 0001 0000 	BIS.B	(SR + 0x0000) <-- #0x1
+
+0000c05e:   c0f2 0001 0002 	BIC.B	(SR + 0x0002) <-- #0x1
+
+0000c064:   d032 00f8      	BIS.W	SR <-- #0xf8
+
+0000c068:   4404           	MOV.W	R4 <-- R4
+
+0000c06a:   d0f2 0001 0029 	BIS.B	(SR + 0x0029) <-- #0x1
+
+0000c070:   4034 000f      	MOV.W	R4 <-- #0xf
+
+0000c074:   4035 ffff      	MOV.W	R5 <-- #0xffff
+
+0000c078:   7315           	SUB.W	R5 <-- (CG2 + 0x0000)
+
+0000c07a:   23fe           	JNE/JNZ	 [offset=3fe (-2)]
+
+0000c07c:   7314           	SUB.W	R4 <-- (CG2 + 0x0000)
+
+0000c07e:   23fa           	JNE/JNZ	 [offset=3fa (-6)]
+
+0000c080:   c0f2 0001 0029 	BIC.B	(SR + 0x0029) <-- #0x1
+
+0000c086:   4034 000f      	MOV.W	R4 <-- #0xf
+
+0000c08a:   4035 ffff      	MOV.W	R5 <-- #0xffff
+
+0000c08e:   7315           	SUB.W	R5 <-- (CG2 + 0x0000)
+
+0000c090:   23fe           	JNE/JNZ	 [offset=3fe (-2)]
+
+0000c092:   7314           	SUB.W	R4 <-- (CG2 + 0x0000)
+
+0000c094:   23fa           	JNE/JNZ	 [offset=3fa (-6)]
+
+0000c096:   3fe6           	JMP	 [offset=3e6 (-26)]
+
+0000c098:   4404           	MOV.W	R4 <-- R4
+
+0000c09a:   e0f2 0001 0029 	XOR.B	(SR + 0x0029) <-- #0x1
+
+0000c0a0:   c0f2 0001 0002 	BIC.B	(SR + 0x0002) <-- #0x1
+
+0000c0a6:   1300 				[error: undefined op code 1]
+
+0000c0a8:   4404           	MOV.W	R4 <-- R4
+
+0000c0aa:   e0f2 0001 0029 	XOR.B	(SR + 0x0029) <-- #0x1
+
+0000c0b0:   c0f2 0001 0023 	BIC.B	(SR + 0x0023) <-- #0x1
+
+0000c0b6:   1300 				[error: undefined op code 1]
+
+0000c0b8:   4404           	MOV.W	R4 <-- R4
+
+dissassembly of section #1: [address=0x0000ffe4], [length=2]
+0000ffe4:   c0aa      c0aa 	BIC.W	(R10 + 0xc0aa) <-- *(PC)
+
+dissassembly of section #2: [address=0x0000fff4], [length=2]
+0000fff4:   c09a c09a c09a 	BIC.W	(R10 + 0xc09a) <-- (PC + 0xc09a)
+
+dissassembly of section #3: [address=0x0000fffe], [length=2]
+0000fffe:   c000           	BIC.W	PC <-- PC
+
