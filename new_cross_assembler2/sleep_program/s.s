@@ -1,5 +1,5 @@
 (
-	use the low power modes to sleep at 680 uA.. 
+	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
 	trying to get this even lower.. 
 )
 
@@ -21,8 +21,19 @@ rp2350
 sect flash_start
 start_rp2350_binary
 
+(turn off the usb phy controller and its pins completely.)
+set c0 address set c1 usb_base li
+set c0 data set c1 0010_0010_0000_11 li
+rs r_store r_sw address data usbphy_direct
+set c0 data set c1 1111_1111_1111_1001_111 li
+rs r_store r_sw address data usbphy_direct_override
+
+(go to sleep in low power mode P1.7)
 set c0 address set c1 powman_base li
-set n 0000_1111_0000_0000 add n powman_password
+set n 0000_1010_0000_0101 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data vreg_control
+set n 0000_0011_0000_0000 add n powman_password
 set c0 data set c1 n li
 rs r_store r_sw address data powman_state
 

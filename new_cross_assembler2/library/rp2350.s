@@ -33,6 +33,10 @@ set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
 set accessctrl_base	0000_0000_0000_0000__0110_0000_0000_0010
 set spi0_base		0000_0000_0000_0000__0001_0000_0000_0010
+set usb_base		0000_0000_0000_0000__1000_1000_0000_1010
+
+
+
 
 
 (clock registers)
@@ -51,10 +55,17 @@ set spi0_status 	0011
 set spi0_prescale 	0000_1
 
 
+(usb control registers)
+
+set usbphy_direct  		0011_1110
+set usbphy_direct_override  	0000_0001
+
+
 
 (powman registers:  ones for the alarm and low power mode configuration)
 
 set powman_password 	0000_0000_0000_0000___0111_1111_0101_1010
+set vreg_control 	001
 set last_swcore_pwrup	0000_0101
 set powman_state 	0001_1100
 set powman_timer 	0001_0001
@@ -62,6 +73,10 @@ set alarm_time_15to0  	0010_0001
 set alarm_time_31to16	0000_0001
 set alarm_time_47to32	0011_1110
 set alarm_time_63to48	0001_1110
+
+
+
+
 
 
 (reset registers)
