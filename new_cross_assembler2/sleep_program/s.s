@@ -1,6 +1,10 @@
 (
 	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
 	trying to get this even lower.. 
+
+	1202509077.141019   
+	YAYY GOT THIS EVEN LOWER   down to  130uA now!!! in P1.7,    and then 210 in P1.4!
+
 )
 
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
@@ -21,45 +25,211 @@ rp2350
 sect flash_start
 start_rp2350_binary
 
+set c0 address set c1 reset_base
+set c0 data set c1 1111_1101_1011_1111___1100_1111_1111_1111 li
+rs r_store r_sw address data 0
+
+
+set c0 address set c1 clocks_base li
+
+set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control
+
+set c0 data set c1 0000_0000_0000_0000___1111_1110 li
+rs r_store r_sw address data clock_ref_div
+
+set c0 data set c1 0000_0000_0001 li
+rs r_store r_sw address data clock_peri_control
+
+
+
+set c0 address set c1 io_bank0_base li
+
+set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio23_ctrl
+
+set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+rs r_store r_sw address data io_gpio18_ctrl
+rs r_store r_sw address data io_gpio19_ctrl
+
+
+
+set c0 address set c1 pads_bank0_base li
+
+(set c0 data set c1 00_00_00_000 li)
+rs r_store r_sw address 0 pads_gpio23
+
+set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio16
+rs r_store r_sw address data pads_gpio17
+rs r_store r_sw address data pads_gpio18
+rs r_store r_sw address data pads_gpio19
+
+
+
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_0000_0000_0000___0000_0001_0000_0000 li
+rs r_store r_sw address data sio_gpio_oe
+rs r_store r_sw address 0 sio_gpio_out
+
+
+
+set c0 address set c1 spi0_base li
+	
+set c0 data set c1 1010_1101_1011_0011 li
+rs r_store r_sw address data spi0_data
+	
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1
+
+
+
+at loop rj r_jal 0 loop del loop
+
+
+
+
+
+set c0 address set c1 powman_base li
+set n 0000_1010_0000_0101 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data vreg_control
+set n 0000_1111_0000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+
+
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+...
+
+ri r_load r_lw led_state ram 0
+ri r_imm r_xor led_state led_state 0000_1
+ri r_imm r_and led_state led_state 0000_1
+
+set c0 address set c1 sio_base li
+rs r_store r_sw address led_state sio_gpio_out
+rs r_store r_sw ram led_state 0
+
+set c0 address set c1 powman_base li
+set n 1000_0110_1000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+set n 0000_0000_001 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data alarm_time_15to0
+set n 1110_1110_1000_0000 add n powman_password 
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(set c0 ram set c1 sram_start li
+set c0 address set c1 powman_base li
+i r_load r_lw data address last_swcore_pwrup
+ri r_imm r_add temp 0 1
+rb r_branch r_bne data temp skip_boot {
+
+	ri r_imm r_add led_state 0 0
+	rs r_store r_sw ram led_state 0
+
+	set c0 address set c1 sio_base li
+
+
+
+	.... 
+
+}
+
+
+
+
+
+
+
+
+
+(
 (turn off the usb phy controller and its pins completely.)
 set c0 address set c1 usb_base li
 set c0 data set c1 0010_0010_0000_11 li
 rs r_store r_sw address data usbphy_direct
 set c0 data set c1 1111_1111_1111_1001_111 li
 rs r_store r_sw address data usbphy_direct_override
-
-(go to sleep in low power mode P1.7)
-set c0 address set c1 powman_base li
-set n 0000_1010_0000_0101 add n powman_password
-set c0 data set c1 n li
-rs r_store r_sw address data vreg_control
-set n 0000_0011_0000_0000 add n powman_password
-set c0 data set c1 n li
-rs r_store r_sw address data powman_state
-
-processor_sleep
-
-at main rj r_jal 0 main
-
-eoi
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-eoi
+)
 
 
 
