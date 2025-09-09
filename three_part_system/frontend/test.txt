@@ -1,0 +1,8 @@
+
+define x = 0101 [okay this is a comment!]
+
+set x = x / 01
+
+eoi
+
+

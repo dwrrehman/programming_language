@@ -1,0 +1,26 @@
+[a program to compute prime numbers, written on 1202509092.011004 by dwrr]
+
+define i = 0
+define count = 0
+
+repeat
+	define j = 01
+	at inner
+		if j < i then else goto prime end
+		set r = i % j
+		if r = 0 then goto composite end
+		set j = j + 1
+		goto inner
+
+	at prime
+		set count = count + 1
+	at composite
+	set i = i + 1
+while i < 00001
+
+
+eoi
+
+
+
+

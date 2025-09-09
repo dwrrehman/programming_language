@@ -1,0 +1,147 @@
+highlights:
+--------------------------
+
+
+	- no functions
+
+	- names can contain spaces
+
+	- only binary literals
+
+	- no compound operators, only   
+
+		+ addition
+		- subtraction
+		* multiply
+		/ division
+		% remainder 
+		& and
+		| or
+		~ xor
+		^ shift up
+		! shift down
+		() parenthesis for precedence
+		@ load/store
+		< set to 1 if less than, else 0
+
+
+
+
+	only certain gramatically correct statements:
+
+
+		[your comment here]
+
+
+		define N = E
+
+		set @(E) = E
+
+		set @ N = E
+
+		set N = E
+
+
+		if C then S else S end
+
+		repeat S while E
+
+
+		do N
+
+		at N
+
+
+		eoi
+
+
+
+
+
+
+
+
+
+
+example of the syntax:
+
+
+at my cool thingy
+	define my x = 1
+	if x < 0001 then
+		repeat
+			set @(p + my x) = 0
+			set my x = my x + 1
+		while my x < 0001
+		do done with everything
+	else
+		set my x = 0
+		do my cool thingy
+	end
+
+at done with everything
+	set my x = 11111
+	eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+comparison of languages:
+
+ir generated:
+-------
+						b = (c + a)
+	set b c
+	add b a
+	blt x y label
+		..stuff..
+	at label
+	nop
+	and x y z
+
+
+
+B:
+---------
+
+	b = c + a
+	if (x < y) {
+		..stuff..
+	}
+	nop
+	x = y & z
+	
+
+C:
+---------
+
+	unsigned int b = c + a;
+	if (x < y) {
+		..stuff..;
+	}
+	nop;
+	char x = y & z;
+
+
+
+
+
+
+
+
+
+

@@ -1,119 +1,18 @@
+// a simple c-like language compiler / byte-code interpreter, just for fun.
+// written by dwrr  on 202403273.011738
+// rewritten on 1202509092.005051 by dwrr
+
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <iso646.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <ctype.h>
 #include <stdnoreturn.h>
-
-// a simple c-like language compiler / byte-code interpreter, just for fun.
-// written by dwrr  on 202403273.011738
-/*
-
-
-ir generated:
--------
-
-	set b c
-	add b a
-	blt x y label
-		..stuff..
-	at label
-	nop
-	and x y z
-
-
-
-B:
----------
-
-	b = c + a
-	if (x < y) {
-		..stuff..
-	}
-	nop
-	x = y & z
-	
-
-C:
----------
-
-	unsigned int b = c + a;
-	if (x < y) {
-		..stuff..;
-	}
-	nop;
-	char x = y & z;
-
-
-
-
-
-
-
-other example of the syntax:
-
-
-at my cool thingy
-	define my x = 1
-	if x < 0001 then
-		repeat
-			set @(p + my x) = 0
-			set my x = my x + 1
-		while my x < 0001
-		do done with everything
-	else
-		set my x = 0
-		do my cool thingy
-	end
-
-at done with everything
-	set my x = 11111
-	eoi
-
-
-
-
-highlighths:
---------------------------
-
-
-	- no functions
-	- labels can contain spaces
-	- only binary literals
-	- no compound operators, only   
-		+ addition
-		- subtraction
-		* multiply
-		/ division
-		% remainder 
-		& and
-		| or
-		~ xor
-		^ shift up
-		! shift down
-		() parenthesis for precedence
-		@ load/store
-		< set to 1 if less than, else 0
-
-
-	only certain gramatically correct statements:
-
-		[your comment here]
-		define X = Y
-		set @(X) = Y
-		set X = Y
-		if C then ...code... else ...code... end
-		repeat ...code... while C
-		do L
-		at L
-		eoi
-
-
-*/
 
 typedef uint64_t nat;
 
@@ -126,7 +25,7 @@ static const char* keywords[] = {
 
 static const nat keyword_count = sizeof keywords / sizeof(char*);
 
-static const char* operators = "<+-*/%&|~^!()@";
+static const char* operators = "<=+-*/%&|~^!()@";
 
 enum token_type {
 	null_token, number_token, name_token,
@@ -136,7 +35,7 @@ enum token_type {
 	if_token, then_token, else_token, end_token, 
 	set_token, define_token,
 
-	less_token, 
+	less_token, equal_token,
 	add_token, subtract_token, 
 	multiply_token, divide_token, modulo_token, 
 	and_token, or_token, eor_token,
@@ -155,7 +54,7 @@ static const char* token_spelling[token_type_count] = {
 	"if_token", "then_token", "else_token", "end_token", 
 	"set_token", "define_token",
 
-	"less_token", 
+	"less_token", "equal_token", 
 	"add_token", "subtract_token", 
 	"multiply_token", "divide_token", "modulo_token", 
 	"and_token", "or_token", "eor_token",
@@ -166,81 +65,165 @@ static const char* token_spelling[token_type_count] = {
 };
 
 enum node_type {
-	null_node, name_list_node,
-	do_node, declaration_node,
-	number_node, parens_node, name_node, 
-	statement_list_node, block_node, 
-	labeled_statement_node, label_node,
-	sum_node, product_node, nor_node, 
-	lvalue_node, deref_node, address_node,
+	null_node, 
+	name_node, 
+	identifier_node,
+	number_node, 
+	sum_node, 
+	product_node, 
+	subtraction_node,
+	division_node,
+	remainder_node,
+	load_node,
+	at_node,
+	do_node,
+	define_node,
+	assignment_node,
+	store_node,
+	expression_node, 
+	if_node,
+	repeat_node,
+	statement_node,
+	statement_list_node, 
 	node_type_count
 };
 
 static const char* node_spelling[node_type_count] = {
-	"null_node",  "name_list_node",
-	"do_node", "declaration_node",
-	"number_node", "parens_node", "name_node", 
-	"statement_list_node", "block_node", 
-	"labeled_statement", "label_node",
-	"sum_node", "product_node", "nor_node", 
-	"lvalue_node", "deref_node", "address_node", 
-};
-
-static int colors[] = {
-	34, 57, 179, 120, 189, 37, 45, 67, 79, 145, 156, 81, 122, 111, 
-	99, 136, 50, 60, 42, 144, 149, 180, 172, 161, 199, 123, 145, 
+	"null_node", 
+	"name_node", 
+	"identifier_node",
+	"number_node", 
+	"sum_node", 
+	"product_node", 
+	"subtraction_node",
+	"division_node",
+	"remainder_node",
+	"load_node",
+	"at_node",
+	"do_node",
+	"define_node",
+	"assignment_node",
+	"store_node",
+	"expression_node", 
+	"if_node",
+	"repeat_node",
+	"statement_node",
+	"statement_list_node", 
 };
 
 struct token {
 	nat type;
 	nat value;
 	nat location;
-	const char* name;
+	char* name;
 };
 
-struct tree_node {
+struct node {
 	nat type;
-	nat start;
-	nat end;
 	nat count;
-	struct tree_node** children;
+	nat begin;
+	nat end;
+	nat* children;
 };
+
+
+static const nat error = (nat) -1;
+
+static nat text_length = 0;
+static char* text = NULL;
+
+static struct token* tokens = NULL;
+static nat token_count = 0;
+
+static nat max_at = 0;
+
+static nat node_count = 0;
+static struct node nodes[65536] = {0};
+static nat pointers[65536] = {0};
+static nat* heap = pointers;
+
 
 static bool is_delimiter(char c) { 
 	return isspace(c) or strchr(operators, c);
 }
 
-static void print_tokens(struct token* tokens, const nat token_count) {
-	
+static char* load_file(const char* filename, nat* length) {
+	int file = open(filename, O_RDONLY);
+	if (file < 0) { 
+		printf("compiler frontend: error: could not open '%s': %s\n", 
+			filename, strerror(errno)
+		); 
+		exit(1);
+	}
+	*length = (nat) lseek(file, 0, SEEK_END);
+	lseek(file, 0, SEEK_SET);
+	char* s = calloc(*length + 1, 1);
+	read(file, s, *length);
+	close(file);
+	return s;
+}
+
+static void print_tokens(void) {	
 	printf("printing all tokens: (%llu tokens): {\n\n", token_count);
 	for (nat i = 0; i < token_count; i++) {
-
-		printf(" @%-6llu: token(.type = \033[38;5;%dm%-20s\033[0m ",
-			tokens[i].location, 
-			colors[tokens[i].type], 
+		printf("#%llu: @%-6llu: token(.type = %-20s ",
+			i, tokens[i].location, 
 			token_spelling[tokens[i].type]
 		);
-
 		if (tokens[i].type == name_token) 
-			printf(".name = \"\033[32m%s\033[0m\" ", tokens[i].name);
-
+			printf(".name = \"%s\" ", tokens[i].name);
 		if (tokens[i].type == number_token) 
-			printf(".value = \033[31m%llu\033[0m ", tokens[i].value);
-
+			printf(".value = %llu ", tokens[i].value);
 		puts("\n");
 	}
 	puts("}");
 }
 
-static void print_string_index(const char* text, nat length, nat given_index) {
+static void print_nats(nat* array, nat count) {
+	printf("(%llu) { ", count);
+	for (nat i = 0; i < count; i++) {
+		printf("%lld ", array[i]);
+	}
+	printf("}");
+}
+
+
+static void print_nodes(void) {
+	puts("nodes:");
+	for (nat i = 0; i < node_count; i++) {
+		printf("#%llu: node[.type=%s, .begin = %llu, .end = %llu, .count=%llu, .children = {",
+			i, node_spelling[nodes[i].type], 
+			nodes[i].begin,
+			nodes[i].end,
+			nodes[i].count
+		);
+		print_nats(nodes[i].children, nodes[i].count);
+		puts("} ];");
+	}
+	puts("");
+}
+
+
+
+static void print_syntax_tree(nat this, nat depth) {
+	for (nat i = 0; i < depth; i++) printf(".\t");
+	printf("node[.type=%s, .count=%llu]\n\n",
+		node_spelling[nodes[this].type], 
+		nodes[this].count
+	);
+	for (nat i = 0; i < nodes[this].count; i++) 
+		print_syntax_tree(nodes[this].children[i], depth + 1);
+}
+
+static void print_string_index(nat given_index) {
 	const int index = (int) given_index;
 	const int radius = 14;
 	putchar('\t');
 
 	for (int offset = -radius; offset < radius; offset++) {
 
-		if (not offset) printf("\033[7;31m");
-		if (index + offset >= 0 and index + offset < (int) length) {
+		if (not offset) printf("\033[7;33m");
+		if (index + offset >= 0 and index + offset < (int) text_length) {
 			const nat at = (nat) (index + offset);
 			if (text[at] == 10) printf("\033[7mN\033[0m");
 			else if (text[at] == 9) printf("\033[7mT\033[0m");
@@ -251,24 +234,215 @@ static void print_string_index(const char* text, nat length, nat given_index) {
 	printf("\n\t");
 	for (int offset = -radius; offset < radius; offset++) {
 		if (not offset) break;
-		if (index + offset >= 0 and index + offset < (int) length) 
+		if (index + offset >= 0 and index + offset < (int) text_length) 
 			putchar(' ');
 	}
 	printf("\033[32;1m^\033[0m"); 
 	puts("");
 }
 
-static nat lex(struct token** given_tokens, char* text, nat length) {
+
+static nat terminal(nat type, nat at) {
+	printf("in %s(%s, %llu)...\n", __func__, token_spelling[type], at);
+	if (at > max_at) max_at = at;
+	if (at == token_count) return error;
+	if (tokens[at].type != type) return error;
+	return at + 1;
+}
+
+static nat identifier(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+
+	nat begin = at;
+	nat r = terminal(name_token, at);
+	if (r == error) return error;
+	at = r;
+more:
+	r = terminal(name_token, at);
+	if (r == error) goto done;
+	at = r; goto more;
+done:
+	nodes[node_count++] = (struct node) {
+		.type = identifier_node, 
+		.begin = begin, 
+		.end = at
+	};
+	return node_count - 1;
+}
+
+static nat number(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+
+	nat begin = at;
+	nat r = terminal(number_token, at);
+	if (r == error) return error;
+	at = r;
+
+	nodes[node_count++] = (struct node) {
+		.type = number_node, 
+		.begin = begin, 
+		.end = at
+	};
+	return node_count - 1;
+}
+
+static nat expression(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+	nat begin = at, e = 0;
+
+	e = identifier(at);
+	if (e == error) goto try_number;
+	at = nodes[e].end;
+	goto success;
+
+try_number:	
+	e = number(at);
+	if (e == error) return error;
+	at = nodes[e].end;
+
+success:
+	heap[0] = e;
+	nodes[node_count++] = (struct node) {
+		.type = expression_node, 
+		.begin = begin, 
+		.end = at,
+		.count = 1,
+		.children = heap,
+	};
+	heap += 1;
+	return node_count - 1;
+}
+
+static nat assignment_statement(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+	nat begin = at;
+	nat r = terminal(set_token, at);
+	if (r == error) return error;
+	at = r;
+	nat destination = identifier(at);
+	if (destination == error) return error;
+	at = nodes[destination].end;
+	r = terminal(equal_token, at);
+	if (r == error) return error;
+	at = r;
+	nat source = expression(at);
+	if (source == error) return error;
+	at = nodes[source].end;	
+	heap[0] = destination;
+	heap[1] = source;
+	nodes[node_count++] = (struct node) {
+		.type = assignment_node, 
+		.begin = begin, 
+		.end = at,
+		.count = 2,
+		.children = heap,
+	};
+	heap += 2;
+	return node_count - 1;
+}
+
+static nat define_statement(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+	nat begin = at;
+	nat r = terminal(define_token, at);
+	if (r == error) return error;
+	at = r;
+	nat destination = identifier(at);
+	if (destination == error) return error;
+	at = nodes[destination].end;
+	r = terminal(equal_token, at);
+	if (r == error) return error;
+	at = r;
+	nat source = expression(at);
+	if (source == error) return error;
+	at = nodes[source].end;	
+	heap[0] = destination;
+	heap[1] = source;
+	nodes[node_count++] = (struct node) {
+		.type = define_node, 
+		.begin = begin, 
+		.end = at,
+		.count = 2,
+		.children = heap,
+	};
+	heap += 2;
+	return node_count - 1;
+}
+
+static nat statement(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+
+	nat begin = at, s = 0;
+
+	s = define_statement(at);
+	if (s == error) goto try_assignment;
+	at = nodes[s].end;
+	goto success;
+
+try_assignment:
+	s = assignment_statement(at);
+	if (s == error) return error;
+	at = nodes[s].end;
+	goto success;
+
+success:
+	heap[0] = s;
+	nodes[node_count++] = (struct node) {
+		.type = statement_node, 
+		.begin = begin, 
+		.end = at,
+		.count = 1,
+		.children = heap,
+	};
+	heap += 1;
+	return node_count - 1;	
+}
+
+static nat statement_list(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+	nat array[4096] = {0};
+	nat begin = at, count = 0;
+next:;
+	nat s = statement(at);
+	if (s == error) goto done;
+	at = nodes[s].end;
+	array[count++] = s;
+	goto next;
+done:
+	for (nat i = 0; i < count; i++) {
+		heap[i] = array[i];
+	}
+	nodes[node_count++] = (struct node) {
+		.type = statement_list_node, 
+		.begin = begin, 
+		.end = at,
+		.count = count,
+		.children = heap
+	};
+	heap += count;
+	return node_count - 1;
+}
+
+
+
+int main(int argc, const char** argv) {
+	if (argc != 2) return puts("compiler frontend: error: no input file given");
+	text = load_file(argv[1], &text_length);
 	
-	struct token* tokens = NULL;
-	nat token_count = 0;
+	for (nat i = 0; i < text_length; ) {
+		if (text[i] == '[') {
+			bool comment = 1;
+			while (comment and i < text_length) {
+				if (text[i] == '[') comment++;
+				if (text[i] == ']') comment--;
+				i++;
+			}
+			if (comment) printf("syntax error: unterminated comment\n");
+			continue;
+		}
 
-	for (nat i = 0; i < length; ) {
-
-		printf("processing %lluth character, \"%c\"(%d)...\n", i, text[i], text[i]);
-
+		printf("processing character text[%llu], \"%c\"(%d)...\n", i, text[i], text[i]);
 		if ((unsigned char) text[i] < 33) { i++; goto next_char; }
-
 		const char* is_operator = strchr(operators, text[i]);
 		if (is_operator) {
 			nat type = less_token + (nat)(is_operator - operators);
@@ -276,12 +450,9 @@ static nat lex(struct token** given_tokens, char* text, nat length) {
 			tokens[token_count++] = (struct token) { .type = type, .location = i };
 			i++; goto next_char;
 		} 
-
 		for (nat k = 0; k < keyword_count; k++) {
-
 			const nat keyword_length = strlen(keywords[k]);
-
-			if (i + keyword_length <= length and not strncmp(text + i, keywords[k], keyword_length) and 
+			if (i + keyword_length <= text_length and not strncmp(text + i, keywords[k], keyword_length) and 
 			    (is_delimiter(text[i + keyword_length]))
 			) {
 				tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
@@ -291,103 +462,146 @@ static nat lex(struct token** given_tokens, char* text, nat length) {
 			}
 		}
 
-		const nat start = i;
+		nat start = i;
 		nat t = i;
 		while (not is_delimiter(text[t])) t++;
 		const nat end = t;
-
 		if (end == start) abort();
 
-		const char* string = strndup(text + start, end - start);
-		const nat string_length = strlen(string);
-		
+		char* string = strndup(text + start, end - start);
+		nat string_length = strlen(string);
+
 		nat r = 0, s = 1;
 		for (nat j = 0; j < string_length; j++) {
 			if (string[j] == '0') s <<= 1; 
 			else if (string[j] == '1') { r += s; s <<= 1; }
 			else goto push_name;
-		}
-	
-		puts("pushing number token...");
+		}	
+
 		tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
 		tokens[token_count++] = (struct token) { 
 			.type = number_token,
 			.value = r,
 			.location = i,
 		};
-		//printf("number: advancing %llu characters...\n", string_length);
+
 		i += string_length;
 		goto next_char;
-
 	push_name:
-		puts("pushing name token...");
 		tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
 		tokens[token_count++] = (struct token) { 
 			.type = name_token,
 			.name = string,
 			.location = i,
-		};
-		//printf("name: advancing %llu characters...\n", string_length);
+		};	
 		i += string_length;
-	next_char:;
+		next_char:;
 	}
-	*given_tokens = tokens;
-	return token_count;
+	print_tokens();
+
+	const nat root = statement_list(0);
+	if (root == error) {
+		printf("compiler: syntax parsing error: error at token: %llu\n", max_at);
+		if (max_at < token_count) print_string_index(tokens[max_at].location);
+		else puts("[could not print error token position...]");
+		abort();
+	}
+	print_syntax_tree(root, 0);
+	puts("");
+	print_nodes();
+	puts("");
+	printf("root = %llu\n", root);
+	puts("");
+	print_nats(pointers, heap + 10 - pointers);
+	puts("");
 }
 
 
-static nat max_at = 0;
-static char* file_text = NULL;
-static nat file_length = 0;
 
-static void print_error(const char* reason, const char* filename, nat offset, nat max) {
-	fprintf(stderr, "compiler: %s:%llu:%llu: \033[31;1merror:\033[0m \033[1m%s\033[0\n", filename, offset, max, reason);
-	print_string_index(file_text, file_length, max);
-}
 
-static nat terminal(nat type, nat at, struct token* tokens, nat count) {
-	printf("in %s(%s, %llu)...\n", __func__, token_spelling[type], at);
-	if (at > max_at) max_at = at;
-	if (at == count) return 0;
-	if (tokens[at].type != type) return 0;
-	return 1;
-}
 
-static struct tree_node* name_list(nat at, struct token* tokens, nat count) {
-	printf("in %s(%llu)...\n", __func__, at);
-	//puts("trying first name in list...");
-	nat start = at;
-	nat r = terminal(name_token, at, tokens, count);
-	if (not r) return NULL;
-	
-	at += r;
-	//printf("advancing at by %llu, to be %llu...\n", r, at);
 
-try_more_names:;
-	//puts("trying more names in list...");
-	r = terminal(name_token, at, tokens, count);
-	if (not r) { 
-		//puts("could not recognize name..."); 
-		goto done; }
-	//puts("success! trying next name...");
-	at += r;
-	//printf("advancing at by %llu, to be %llu...\n", r, at);
-	goto try_more_names;
-done:;
-	struct tree_node* new = calloc(1, sizeof(struct tree_node));
-	new->start = start;
-	new->end = at;
-	new->type = name_list_node;
-	return new;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 
 
 static struct tree_node* term(nat at, struct token* tokens, nat count);
-
-
-//lvalue:
-//	name_list
-//	at term
 
 static struct tree_node* lvalue(nat at, struct token* tokens, nat count) {
 
@@ -435,16 +649,6 @@ error:
 	return NULL;	
 }
 
-static struct tree_node* sum_expression(nat at, struct token* tokens, nat count);
-
-//term:
-//	number
-//	name_list
-//	# name_list
-//	( sub_expression )
-//	at term
-
-
 
 static struct tree_node* term(nat at, struct token* tokens, nat count) { 
 
@@ -485,7 +689,7 @@ try_addr_name_list:
 
 	puts("trying to recognize address name list...");
 
-	r = terminal(pound_token, at, tokens, count);
+	r = terminal(name_token, at, tokens, count);
 	if (not r) goto try_parens;
 	at += r;
 
@@ -814,9 +1018,9 @@ error:
 	return NULL;
 }
 
-//labeled_statement:
-//	( name_list ) statement
-//	statement
+
+
+
 
 static struct tree_node* labeled_statement(nat at, struct token* tokens, nat count) {
 
@@ -869,9 +1073,7 @@ error:
 	return NULL;
 }
 
-//statement_list:
-//	[labeled_statement]...
-//	
+
 
 static struct tree_node* statement_list(nat at, struct token* tokens, nat count) {
 
@@ -895,14 +1097,12 @@ done:;
 	return new;
 }
 
-//block:
-//	{ statement_list }
-//	labeled_statement
 
-static struct tree_node* block(nat at, struct token* tokens, nat count) {
+
+static struct tree_node* statement_list(nat at, struct token* tokens, nat count) {
 	printf("in %s(%llu)...\n", __func__, at);
+
 	nat start = at;
-	puts("trying to recognize curly statement list...");
 
 	nat r = terminal(open_curl_token, at, tokens, count);
 	if (not r) goto try_single;
@@ -947,42 +1147,39 @@ error:
 	return NULL;
 }
 
-static struct tree_node* parse(nat at, struct token* tokens, nat count) {
-	printf("in %s(%llu)...\n", __func__, at);
-	return block(at, tokens, count);
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+static void print_error(const char* reason, const char* filename, nat offset, nat max) {
+	printf("compiler: %s:%llu:%llu: \033[31;1merror:\033[0m \033[1m%s\033[0\n", 
+		filename, offset, max, reason
+	);
+	print_string_index(file_text, file_length, max);
 }
 
-static void print_syntax_tree(struct tree_node* this, nat depth) {
 
-	if (not this) { printf("node[(pointer is null)]\n\n"); return; } 
-
-	for (nat i = 0; i < depth; i++) printf(".\t");
-	printf("node[.type=\033[38;5;%dm%s\033[0m, .start=%llu, .end=%llu, .count=%llu]\n\n", 
-		colors[this->type], node_spelling[this->type], this->start, this->end, this->count
-	);
-	
-	for (nat i = 0; i < this->count; i++) {
-		print_syntax_tree(this->children[i], depth + 1);
-	}
-}
-
-int main(void) {
-
-	char* text = strdup(
-	"{ \
-	nat hello = ((001 + 0) * 0001) 		\
-	@hello = hello + 1 			\
-	@(1010101) = #hello + 00010101 			\
-	my name: do my name 			\
- 	} "
-	);
-
-	const nat text_length = strlen(text);
-	struct token* tokens = NULL;
-	const nat token_count = lex(&tokens, text, text_length);
-	print_tokens(tokens, token_count);
-
-	file_text = text; file_length = text_length;
 	struct tree_node* tree = parse(0, tokens, token_count);
 	if (tree and tree->end != token_count) {
 		print_error("input not fully used", "test.txt", tokens[tree->start].location, 
@@ -993,7 +1190,25 @@ int main(void) {
 	}
 	puts("AST:");
 	print_syntax_tree(tree, 0);
-}
+
+*/
+
+
+
+
+/*	char* text = strdup(
+	"{ \
+	nat hello = ((001 + 0) * 0001) 		\
+	@hello = hello + 1 			\
+	@(1010101) = #hello + 00010101 			\
+	my name: do my name 			\
+ 	} "
+	);
+*/
+
+
+
+
 
 
 
