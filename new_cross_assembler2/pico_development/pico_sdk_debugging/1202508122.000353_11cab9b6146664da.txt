@@ -12,8 +12,6 @@ the pico sdk program to do the equivalent thing:
 
 int main() {
 
-    stdio_init_all();
-
     spi_init(SPI_PORT, 1000 * 1000); // Initialize SPI at 1 MHz
 
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
@@ -24,7 +22,10 @@ int main() {
     uint8_t tx_data = 0xAA;
     spi_write_blocking(SPI_PORT, &tx_data, 1);
 
-    while (1) tight_loop_contents(); 
 }
+
+
+
+
 
 

@@ -37,7 +37,7 @@ enum token_type {
 
 	less_token, equal_token,
 	add_token, subtract_token, 
-	multiply_token, divide_token, modulo_token, 
+	multiply_token, divide_token, remainder_token, 
 	and_token, or_token, eor_token,
 	shiftup_token, shiftdown_token, 
 	open_paren_token, close_paren_token, 
@@ -56,7 +56,7 @@ static const char* token_spelling[token_type_count] = {
 
 	"less_token", "equal_token", 
 	"add_token", "subtract_token", 
-	"multiply_token", "divide_token", "modulo_token", 
+	"multiply_token", "divide_token", "remainder_token", 
 	"and_token", "or_token", "eor_token",
 	"shiftup_token", "shiftdown_token", 
 	"open_paren_token", "close_paren_token", 
@@ -217,7 +217,7 @@ static void print_syntax_tree(nat this, nat depth) {
 
 static void print_string_index(nat given_index) {
 	const int index = (int) given_index;
-	const int radius = 14;
+	const int radius = 30;
 	putchar('\t');
 
 	for (int offset = -radius; offset < radius; offset++) {
@@ -242,8 +242,23 @@ static void print_string_index(nat given_index) {
 }
 
 
+static void print_token_position(nat at) {
+
+	puts("token position:");
+	for (nat i = 0; i < token_count; i++) {
+		if (i % 3 == 0) puts("");
+		if (i == at) printf("\033[32;1m");
+		printf("  %20s  ", token_spelling[tokens[i].type]);
+		if (i == at) printf("\033[0m");
+
+	}
+	puts("\n");
+}
+
+
 static nat terminal(nat type, nat at) {
 	printf("in %s(%s, %llu)...\n", __func__, token_spelling[type], at);
+	print_token_position(at);
 	if (at > max_at) max_at = at;
 	if (at == token_count) return error;
 	if (tokens[at].type != type) return error;
@@ -252,6 +267,7 @@ static nat terminal(nat type, nat at) {
 
 static nat identifier(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
 
 	nat begin = at;
 	nat r = terminal(name_token, at);
@@ -272,6 +288,7 @@ done:
 
 static nat number(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
 
 	nat begin = at;
 	nat r = terminal(number_token, at);
@@ -286,19 +303,83 @@ static nat number(nat at) {
 	return node_count - 1;
 }
 
-static nat expression(nat at) {
+
+
+static nat expression(nat at);
+
+static nat binary_expression(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
-	nat begin = at, e = 0;
+	print_token_position(at);
 
-	e = identifier(at);
-	if (e == error) goto try_number;
-	at = nodes[e].end;
-	goto success;
+	nat begin = at, e = 0, f = 0, op = 0, r = 0;
 
-try_number:	
-	e = number(at);
+	e = expression(at);
 	if (e == error) return error;
 	at = nodes[e].end;
+
+	op = add_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+	op = subtract_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+	op = multiply_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+	op = divide_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+	op = remainder_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+	op = less_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+	op = equal_token; 	r = terminal(op, at); if (r != error) { at = r; goto second; } 
+
+	return error;
+
+second:
+	f = expression(at);
+	if (f == error) return error;
+	at = nodes[f].end;
+
+	heap[0] = op;
+	heap[1] = e;
+	heap[2] = f;
+	nodes[node_count++] = (struct node) {
+		.type = expression_node, 
+		.begin = begin, 
+		.end = at,
+		.count = 3,
+		.children = heap,
+	};
+	heap += 3;
+	return node_count - 1;
+}
+
+
+static nat expression(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
+
+	nat begin = at, e = 0;
+
+	nat r = terminal(open_paren_token, at);
+	if (r == error) goto next;
+	at = r;
+
+	e = binary_expression(at);
+	if (e != error) goto next;
+	at = nodes[e].end;
+
+	r = terminal(close_paren_token, at);
+	if (r == error) return error;
+	at = r;
+	goto success;
+
+next:
+	e = identifier(at);
+	if (e != error) {
+		at = nodes[e].end;
+		goto success;
+	}
+
+	e = number(at);
+	if (e != error) {
+		at = nodes[e].end;
+		goto success;
+	}
+
+	return error;
 
 success:
 	heap[0] = e;
@@ -315,21 +396,28 @@ success:
 
 static nat assignment_statement(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
+
 	nat begin = at;
 	nat r = terminal(set_token, at);
 	if (r == error) return error;
 	at = r;
+
 	nat destination = identifier(at);
 	if (destination == error) return error;
 	at = nodes[destination].end;
+
 	r = terminal(equal_token, at);
 	if (r == error) return error;
 	at = r;
+
 	nat source = expression(at);
 	if (source == error) return error;
 	at = nodes[source].end;	
+
 	heap[0] = destination;
 	heap[1] = source;
+
 	nodes[node_count++] = (struct node) {
 		.type = assignment_node, 
 		.begin = begin, 
@@ -343,21 +431,28 @@ static nat assignment_statement(nat at) {
 
 static nat define_statement(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
+
 	nat begin = at;
 	nat r = terminal(define_token, at);
 	if (r == error) return error;
 	at = r;
+
 	nat destination = identifier(at);
 	if (destination == error) return error;
 	at = nodes[destination].end;
+
 	r = terminal(equal_token, at);
 	if (r == error) return error;
 	at = r;
+
 	nat source = expression(at);
 	if (source == error) return error;
 	at = nodes[source].end;	
+
 	heap[0] = destination;
 	heap[1] = source;
+
 	nodes[node_count++] = (struct node) {
 		.type = define_node, 
 		.begin = begin, 
@@ -369,21 +464,70 @@ static nat define_statement(nat at) {
 	return node_count - 1;
 }
 
+static nat statement_list(nat at);
+
+static nat repeat_statement(nat at) {
+	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
+
+	nat begin = at;
+
+	nat r = terminal(repeat_token, at);
+	if (r == error) return error;
+	at = r;
+
+	nat block = statement_list(at);
+	if (block == error) return error;
+	at = nodes[block].end;
+
+	r = terminal(while_token, at);
+	if (r == error) return error;
+	at = r;
+
+	nat condition = expression(at);
+	if (condition == error) return error;
+	at = nodes[condition].end;	
+
+	heap[0] = block;
+	heap[1] = condition;
+	nodes[node_count++] = (struct node) {
+		.type = repeat_node, 
+		.begin = begin, 
+		.end = at,
+		.count = 2,
+		.children = heap,
+	};
+	heap += 2;
+	return node_count - 1;
+}
+
+
+
 static nat statement(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
 
 	nat begin = at, s = 0;
 
-	s = define_statement(at);
-	if (s == error) goto try_assignment;
-	at = nodes[s].end;
-	goto success;
+	s = repeat_statement(at);
+	if (s != error) {
+		at = nodes[s].end;
+		goto success;	
+	}
 
-try_assignment:
+	s = define_statement(at);
+	if (s != error) {	
+		at = nodes[s].end;
+		goto success;
+	}
+
 	s = assignment_statement(at);
-	if (s == error) return error;
-	at = nodes[s].end;
-	goto success;
+	if (s != error) {	
+		at = nodes[s].end;
+		goto success;
+	}
+
+	return error;
 
 success:
 	heap[0] = s;
@@ -400,6 +544,8 @@ success:
 
 static nat statement_list(nat at) {
 	printf("in %s(%llu)...\n", __func__, at);
+	print_token_position(at);
+
 	nat array[4096] = {0};
 	nat begin = at, count = 0;
 next:;
@@ -506,6 +652,14 @@ int main(int argc, const char** argv) {
 		else puts("[could not print error token position...]");
 		abort();
 	}
+
+	if (nodes[root].end != token_count) {
+		printf("compiler: syntax parsing error: error at token: %llu\n", max_at);
+		if (max_at < token_count) print_string_index(tokens[max_at].location);
+		else puts("[could not print error token position...]");
+		abort();
+	}
+
 	print_syntax_tree(root, 0);
 	puts("");
 	print_nodes();

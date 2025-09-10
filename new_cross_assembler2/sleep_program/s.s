@@ -46,6 +46,7 @@ rs r_store r_sw address data clock_peri_control
 set c0 address set c1 io_bank0_base li
 
 set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio0_ctrl
 rs r_store r_sw address data io_gpio23_ctrl
 
 set c0 data set c1 1 li
@@ -55,10 +56,10 @@ rs r_store r_sw address data io_gpio18_ctrl
 rs r_store r_sw address data io_gpio19_ctrl
 
 
-
 set c0 address set c1 pads_bank0_base li
 
 (set c0 data set c1 00_00_00_000 li)
+rs r_store r_sw address 0 pads_gpio0
 rs r_store r_sw address 0 pads_gpio23
 
 set c0 data set c1 01 li
@@ -69,32 +70,103 @@ rs r_store r_sw address data pads_gpio19
 
 
 
-
 set c0 address set c1 sio_base li
-set c0 data set c1 0000_0000_0000_0000___0000_0001_0000_0000 li
+set c0 data set c1 1000_0000_0000_0000___0000_0001_0000_0000 li
 rs r_store r_sw address data sio_gpio_oe
 rs r_store r_sw address 0 sio_gpio_out
 
 
-
 set c0 address set c1 spi0_base li
-	
-set c0 data set c1 1010_1101_1011_0011 li
-rs r_store r_sw address data spi0_data
-	
-set c0 data set c1 1111_0000_1111_1111 li
+
+set c0 data set c1 1110_0000_0111_1110 li
 rs r_store r_sw address data spi0_control0
-	
+
 set c0 data set c1 01 li
 rs r_store r_sw address data spi0_prescale
 	
-set c0 data set c1 01 li
+set c0 data set c1 11 li
 rs r_store r_sw address data spi0_control1
 
 
 
-at loop rj r_jal 0 loop del loop
 
+
+set c0 data set c1 1010_1101 li
+rs r_store r_sw address data spi0_data
+
+set c0 data set c1 1010_1101 li
+rs r_store r_sw address data spi0_data
+
+
+
+
+
+at wait
+
+	set c0 address set c1 sio_base li
+
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
+	
+	set i temp
+	set c0 i set c1 00001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	
+
+	rs r_store r_sw address 0 sio_gpio_out
+	
+	set i temp
+	set c0 i set c1 00001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+
+	
+	set c0 address set c1 spi0_base li
+	ri r_load r_lw data address spi0_status
+	ri r_imm r_and data data 0000_1
+
+
+	rb r_branch r_bne data 0 wait
+
+	del wait
+
+
+
+
+
+
+set c0 address set c1 sio_base li
+
+
+
+at loop 
+
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
+	
+	set i temp
+	set c0 i set c1 0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	
+	rs r_store r_sw address 0 sio_gpio_out
+	
+	set i temp
+	set c0 i set c1 0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+		
+	rj r_jal 0 loop del loop
 
 
 
@@ -108,7 +180,6 @@ set c0 data set c1 n li
 rs r_store r_sw address data powman_state
 
 processor_sleep
-
 
 
 eoi
