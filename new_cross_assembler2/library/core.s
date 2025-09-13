@@ -52,9 +52,7 @@ del x
 
 set r_lui 		1110_110
 set r_auipc 		1110_100
-
 set r_jal		1111_011
-
 set r_jalr_op1		1110_011
 set r_jalr_op2		000
 
@@ -84,35 +82,22 @@ set r_ecall 		1100_111
 set r_imm 		1100_100
 set r_signed		0000_010
 set r_signedi		0000_0000_0010
-set r_reg		1100_1100
+set r_reg		1100_110
 
 set r_add		000
-set r_sll		100
-set r_slt		010
-set r_sltu		110
-set r_xor		001
-set r_srl		101
+set r_si		100
+set r_slts		010
+set r_slt		110
+set r_eor		001
+set r_sd		101
 set r_or		011
 set r_and		111
 
-set r_remu_op1		1100_110
-set r_remu_op2		111
-set r_remu_op3		1000000
-
-set r_divu_op1		1100_110
-set r_divu_op2		101
-set r_divu_op3		1000000
-
-set r_mul_op1		1100_110
-set r_mul_op2		000
-set r_mul_op3		1000000
-
-set r_mulhu_op1		1100_110
-set r_mulhu_op2		110
-set r_mulhu_op3		1000000
-
-
-
+set r_remu		111
+set r_divu		101
+set r_mul		000
+set r_mulhu		110
+set r_m			1000000
 
 (risc-v system call abi)
 
@@ -122,9 +107,7 @@ set r_arg2 	0011
 set r_arg3 	1011
 set r_arg4 	0111
 set r_arg5 	1111
-
 set r_number 	10001
-
 
 
 (system call numbers for my riscv vm website)

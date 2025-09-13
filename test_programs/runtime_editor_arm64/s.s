@@ -1,23 +1,3 @@
-( 1202508225.234146
-
-	NOTE: its TOTALLYYYY possible to dynamically form the string table,  ie, put the strings along side where they are printed, 
-
-		via the fact that we can put strings on the outptubytes    and then remove them from there 
-
-
-			and then store the data to compiletime,
-
-			keeping track of the location of the string, relative to the string table,
-
-
-			and then we just have a function that is called at the end to generate the string table and set the values of all labels, etc i think 
-
-		so yeah! nice lol
-
-
-)
-
-
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
@@ -304,12 +284,6 @@ at main
 
 addi a6_sp a6_sp 1 true 0 subtract
 
-set c0 1 allocatepages
-
-addi begin a6_arg0 0 0 0 0
-addi end begin 0 0 0 0
-addi cursor begin 0 0 0 0
-
 mov a6_number a6_ioctl shiftnone movzero 
 mov a6_arg0 stdin shiftnone movzero
 set c0 a6_arg1 set c1 request_get_terminal_attributes a6li 
@@ -318,14 +292,11 @@ svc
 
 memi mem_load 8_bytes temp a6_sp terminal_attributes_localflags
 
-(set c0 terminalsettingsstring 
-set c1 terminalsettingsstring.length 
-writestring 
-set c0 temp printnumber)
-
-set flags echoinput  or  flags canonicalmode
-mov size flags shiftnone movzero
-orr bitwise_and temp temp true size 0 0 
+set t size
+set flags echoinput
+or  flags canonicalmode
+mov size t shiftnone movzero
+orr bitwise_and temp temp true t 0 0 
 
 memi mem_store 8_bytes temp a6_sp terminal_attributes_localflags
 
@@ -334,6 +305,10 @@ mov a6_arg0 stdin shiftnone movzero
 set c0 a6_arg1 set c1 request_set_terminal_attributes a6li 
 addi a6_arg2 a6_sp 0 0 0 0
 svc
+
+
+
+
 
 mov a6_number a6_ioctl shiftnone movzero 
 mov a6_arg0 stdin shiftnone movzero
@@ -350,6 +325,15 @@ set c0 windowsizestring set c1 windowsizestring.length writestring
 
 memi mem_load 2_bytes size a6_sp 1
 set c0 size printnumber
+
+
+
+set c0 1 allocatepages
+
+addi begin a6_arg0 0 0 0 0
+addi end begin 0 0 0 0
+addi cursor begin 0 0 0 0
+
 
 
 at loop
@@ -448,6 +432,24 @@ got multiple macro call instance with forward branches in macro body   working o
 
 
 
+( 1202508225.234146
+
+	NOTE: its TOTALLYYYY possible to dynamically form the string table,  ie, put the strings along side where they are printed, 
+
+		via the fact that we can put strings on the outptubytes    and then remove them from there 
+
+
+			and then store the data to compiletime,
+
+			keeping track of the location of the string, relative to the string table,
+
+
+			and then we just have a function that is called at the end to generate the string table and set the values of all labels, etc i think 
+
+		so yeah! nice lol
+
+
+)
 
 
 
@@ -458,6 +460,10 @@ got multiple macro call instance with forward branches in macro body   working o
 
 
 
+(set c0 terminalsettingsstring 
+set c1 terminalsettingsstring.length 
+writestring 
+set c0 temp printnumber)
 
 
 

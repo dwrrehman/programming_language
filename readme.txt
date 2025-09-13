@@ -479,47 +479,131 @@ risc-v:
 ---------------------------------------------------------
 	rr op.7 funct3.3 destination.5
 		source1.5 source2.5 funct7.7
----------------------------------------------------------
-	
-	work in progress still!
-
+---------------------------------------------------------	
 	register-register operation instruction.
+	destination, source1, and source2 are 
+	5-bit register indexes.
 
+	this instruction performs: assign to the 
+	register "destination" the value obtained 
+	by combining register "source1" and "source2" 
+	(in that order), using operation X. 
 
-	if op == XXXXX and funct3 == XXX
-	and funct7 == 0, then destination
-	is loaded with source1 + source2.
+	X is determined by op and funct3 and funct7, and, 
+	these three opcodes are little-endian, binary, 
+	unsigned numbers. to determine X, execute the 
+	following:
 
-	if op == XXXXX and funct3 == XXX
-	and funct7 == XXXXXXX, then destination 
-	is loaded with source1 - source2.
+	if op is not equal to 1100_11 (aka r_reg) 
+	then X is undefined.
+	else, if funct7 == 0, then goto action0.
+	else, if funct7 == 1 (aka r_m), 
+	then goto action1.
+	else, if funct7 == 0000_01 (aka r_signed), 
+	then goto action2.
 
+action0:
+	if funct3 == 000 (r_add), then X is addition.
 
+	if funct3 == 100 (r_si), then X is shift-increase, 
+	aka shift-up.
 
-	if op == XXXXX and funct3 == XXX
-	and funct7 == XXXXXXX, then destination 
-	is loaded with source1 bitwise AND'd 
-	with source2.
+	if funct3 == 010 (r_slts), then X is "set 
+	to 1 if less than (signed comparison), 
+	else set to 0".
 
-	if op == XXXXX and funct3 == XXX
-	and funct7 == XXXXXXX, then destination 
-	is loaded with source1 bitwise OR'd 
-	with source2.
+	if funct3 == 110 (r_slt), then X is "set 
+	to 1 if less than (unsigned comparison), 
+	else set to 0".
 
-	if op == XXXXX and funct3 == XXX
-	and funct7 == XXXXXXX, then destination
-	is loaded with source1 bitwise
-	exclusive OR'd with source2.
+	if funct3 == 001 (r_eor), then X is 
+	exclusive bitwise or'ing.
 
+	if funct3 == 101 (r_sd), then X is 
+	shift-decrease, aka shift-down.
 
+	if funct3 == 011 (r_or), then X is 
+	inclusive bitwise or'ing.
 
+	if funct3 == 111 (r_and), then X is 
+	bitwise and'ing.
+
+action1: 
+	(m extension stuff)
+	undocumented so far.
+
+action2: 
+	(signed operation stuff)
+	undocumented so far.
 
 
 ---------------------------------------------------------
 	ri op.7 funct.3 destination.5 
 		source1.5 immediate.12
 ---------------------------------------------------------
-	undocumented so far
+	register-immediate operation instruction.
+
+	destination, source1, are 5-bit register indexes.
+	immediate is a 12-bit sign-extended (to either 
+	64 or 32 bits, depending on the target machine) 
+	immediate value.
+
+	this instruction performs: assign to the 
+	register "destination" the value obtained 
+	by combining register "source1" and the 
+	immediate "immediate" (in that order), 
+	using operation X. 
+
+	X is determined by op and funct3, and, these 
+	two opcodes are little-endian, binary, 
+	unsigned numbers. to determine X, execute the 
+	following:
+
+	if op is not equal to 1100_11 (aka r_reg) 
+	then X is undefined.
+	else, if funct3 == 101, and bit 11 in 
+	"immediate" is set to 1, goto action1.
+	else, goto action0. 
+action0:
+	if funct3 == 000 (r_add), then X is addition.
+
+	if funct3 == 100 (r_si), then X is shift-increase, 
+	aka shift-up.
+
+	if funct3 == 010 (r_slts), then X is "set 
+	to 1 if less than (signed comparison), 
+	else set to 0".
+
+	if funct3 == 110 (r_slt), then X is "set 
+	to 1 if less than (unsigned comparison), 
+	else set to 0".
+
+	if funct3 == 001 (r_eor), then X is 
+	exclusive bitwise or'ing.
+
+	if funct3 == 101 (r_sd), then X is 
+	shift-decrease, aka shift-down.
+
+	if funct3 == 011 (r_or), then X is 
+	inclusive bitwise or'ing.
+
+	if funct3 == 111 (r_and), then X is 
+	bitwise and'ing.
+
+action1: 
+	(m extension stuff)
+	undocumented so far.
+
+action2: 
+	(signed operation stuff)
+	undocumented so far.
+
+
+
+
+
+
+
 
 
 ---------------------------------------------------------

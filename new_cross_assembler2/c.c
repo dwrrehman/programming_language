@@ -216,6 +216,7 @@ static const nat arity[isa_count] = {
 
 static const nat is_undefined = 1;
 static const nat is_ct_label = 2;
+
 static char output_filename[4096] = {0};
 static nat format = no_output;
 static nat should_overwrite = false;
@@ -376,7 +377,7 @@ static void print_source_at(
 	nat value, byte mode
 ) {
 	const nat window_width = 60;
-	const nat error_radius = 4;
+	const nat error_radius = 5;
 	while (end and end < text_length and isspace(text[end])) end--;
 	if (begin >= text_length or end >= text_length) {
 		printf("(error was not contained in the source?..)\n");
@@ -471,7 +472,7 @@ static void print_stack_trace(void) {
 		const nat arg = 0;
 		const nat begin = file_offset[pc + arg];
 		const nat this_file = file_mapping[pc / 16];
-			const char* filename = file_names[this_file];
+		const char* filename = file_names[this_file];
 		nat filename_length = file_name_lengths[this_file];
 		const char* text = file_text[this_file];
 		const nat text_length = file_length[this_file];	
@@ -717,6 +718,7 @@ static void print_disassembly(const nat arch) {
 }
 
 static void generate_machine_instruction(nat* in, nat pc) {
+
 		const nat op = get_op(in[0]);
 		const nat a0 = in[1];
 		const nat a1 = in[2];
@@ -800,8 +802,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				((a4 & 0x1f) <<  7U) | 
 				(a0 << 0U) ;
 			insert_u32((u32) word);
-
-
 
 		} else if (op == ru) {
 
@@ -1264,18 +1264,6 @@ static nat get_length(nat* in) {
 	return length;
 }
 
-/*static nat previous = 0;
-
-static void debug_414(const char* string) {
-	if (previous != values[414]) {
-		printf("[%s]: OFF: CHANGING THE VARIABLE! new value: (previously %llu) ---> NOW: %llu\n", string, previous, values[414]);
-		previous = values[414];
-		getchar();
-		printf("continue?\n");
-		getchar();
-	}
-}*/
-
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("assembler: \033[31;1merror:\033[0m exactly one source file must be specified."));	
 
@@ -1385,7 +1373,7 @@ process_file:;
 
 	undefined_var:
 		if (	op == set and arg_count == 2 or
-			op == st  and arg_count == 2 or
+			op == st  and arg_count == 2 or    //TODO: remove this?... its not neccesary lol....
 			(op > eoi and op < isa_count)
 		) goto define_name;
 
@@ -1399,14 +1387,7 @@ process_file:;
 		var = var_count;
 		variables[var] = word;
 		variable_length[var] = length;
-
-			//debug_414("init0");
-
-
 		values[var] = (nat) -1;
-
-			//debug_414("init1");
-
 		var_count++;
 
 	push_argument:
@@ -1442,16 +1423,9 @@ process_file:;
 			stack_count++; file_count++; 
 			types[args[1]] |= is_undefined;
 			goto process_file;
-
 		} else {
-
-			//debug_414("label init");
-
 			if (op == at) values[args[1]] = ins_count;
 			else if (op == lt or op == eq) types[args[3]] |= is_ct_label;
-
-			//debug_414("label set");
-
 			args[0] |= is_immediate << 32LLU; is_immediate = 0;
 			memcpy(ins + ins_count, args, sizeof args);
 			memcpy(file_offset + ins_count, offsets, sizeof offsets);
@@ -1491,7 +1465,6 @@ process_file:;
 		getchar();
 	}
 
-	nat in[16] = {0};
 	for (nat pass = 0; pass < 2; pass++) {
 	memory[assembler_pass] = pass;
 	if (pass == 1) output_count = 0;
@@ -1506,8 +1479,6 @@ process_file:;
 		const nat val1 = (imm & 2) or 1 >= arity[op] ? arg1 : values[arg1];
 		const nat val2 = (imm & 4) or 2 >= arity[op] ? arg2 : values[arg2];
 
-			//debug_414("cte loop before");
-
 		if ((op == lt or op == eq) and val2 >= ins_count)
 			print_error("invalid jump address", val2, pc, 3);
 		if (op == st and val0 >= max_memory_size)
@@ -1517,6 +1488,7 @@ process_file:;
 
 		if (op == str) insert_bytes(strings[arg1], arg0);
 		else if ((op > eoi and op < isa_count) or op == emit or op == sect) {
+			nat in[16] = {0};
 			in[0] = op | (0xffffLLU << 32LLU);
 			for (nat a = 0; a < arity[op]; a++) {
 				const nat arg = ins[pc + a + 1];
@@ -1546,11 +1518,10 @@ process_file:;
 		else if (op == eq) { if (val0 == val1) { *memory = pc; pc = val2; } }
 		else print_error("invalid CTE operation executed", op, pc, 0);
 
-			//debug_414("cte loop executed after");
-		
+
 		if (op == ld and val1 == assembler_count) values[arg0] = output_count;
 		if (op == ld and val1 == assembler_data) values[arg0] = output_bytes[val0];
-		if (op == ld and val1 == assembler_read)  values[arg0] = read_char();
+		if (op == ld and val1 == assembler_read) values[arg0] = read_char();
 		if (op == st and val0 == assembler_count) output_count = val1;
 		if (op == st and val0 == assembler_write) { char c = (char) val1; write(1, &c, 1); }
 		if (op == st and val0 == assembler_open) {
@@ -1561,10 +1532,6 @@ process_file:;
 		if (op == st and val0 == assembler_output_name) {
 			memcpy(output_filename, output_bytes + val1, strlen((char*) (output_bytes + val1)));
 		}
-
-			//debug_414("memio executed");
-
-
 	}}
 
 	format = memory[assembler_output_format];
@@ -2055,6 +2022,59 @@ finished_outputting:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*static nat previous = 0;
+
+static void debug_414(const char* string) {
+	if (previous != values[414]) {
+		printf("[%s]: OFF: CHANGING THE VARIABLE! new value: (previously %llu) ---> NOW: %llu\n", string, previous, values[414]);
+		previous = values[414];
+		getchar();
+		printf("continue?\n");
+		getchar();
+	}
+}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*if (op == st and val0 == output_name) { 
 			const nat n = val1;
 			nat length = memory[n + 0];
@@ -2113,7 +2133,7 @@ const nat k = 0xffffffff;
 	x	- Q: can the arm64 encoding listing be simplified?..
 			https://en.wikipedia.org/wiki/AArch64
 
-		- figure out how the load/stores work on arm64 again lol
+	x	- figure out how the load/stores work on arm64 again lol
 
 	risc-v compressed extension:
 

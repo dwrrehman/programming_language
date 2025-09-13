@@ -21,11 +21,8 @@ str "firmware.uf2" set_output_name
 
 (program register allocations)
 
-set led_state 	1
-set data 	01
-set ram 	11
+set data 	101
 set address 	001
-set temp	101
 
 rp2350
 sect flash_start
@@ -122,8 +119,6 @@ at wait
 	del l del i
 
 
-	hello there!
-	
 	
 	set c0 address set c1 spi0_base li
 	ri r_load r_lw data address spi0_status

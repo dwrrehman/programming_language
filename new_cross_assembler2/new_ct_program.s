@@ -12,7 +12,7 @@ at l
 		lt i j prime eq i j prime
 		set r i rem r j eq r 0 composite
 		incr j eq 0 0 m
-	at prime set c0 i ctprintbinary ctnl 
+	at prime set c0 i ctprintbinary ctnl ctabort
 	set c0 011 decrement
 	at composite incr i lt i 0000001 l 
 	del l del i
