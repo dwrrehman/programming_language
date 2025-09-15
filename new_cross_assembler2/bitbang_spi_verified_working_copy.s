@@ -31,7 +31,7 @@ rp2350
 sect flash_start
 start_rp2350_binary
 
-set c0 address set c1 reset_base
+set c0 address set c1 reset_base li
 set c0 data set c1 1111_1101_1011_1111____1111_1111_1111_1111 li
 rs r_store r_sw address data 0
 
