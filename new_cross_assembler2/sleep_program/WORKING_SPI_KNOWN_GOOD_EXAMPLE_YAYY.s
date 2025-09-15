@@ -108,8 +108,8 @@ sect flash_start
 start_rp2350_binary
 
 set c0 address set c1 reset_base li
-set c0 data set c1 1111_1100_1001_1111___1101_1111_1111_1000 li
-rs r_store r_sw address data 0
+rs r_store r_sw address 0 0
+
 
 (1202509147.180328
 YAYYYY I GOT IT WORKINGGGG THE RESETS WERE THE PROBLEM YAYYYYYY    I GOT SPI WORKING YAYYYYYY
@@ -203,6 +203,9 @@ set c0 data set c1 0000_001 li
 rs r_store r_sw address data spi_prescale
 
 
+
+
+
 set c0 data set c1 1010_1101 li
 rs r_store r_sw address data spi_data
 set c0 data set c1 1010_1101 li
@@ -216,50 +219,6 @@ rs r_store r_sw address data spi_data
 set c0 data set c1 1010_1101 li
 rs r_store r_sw address data spi_data
 
-
-
-
-(
-
-A B        (A is the clock,   B is the data.)
--------
-
-CS LOW
-
-0 1      /________  we clocked out a 1 on the rising edge of the clock
-1 1      \
-
-0 0    /__________ we clocked out a 0 on the rising edge of the clock
-1 0    \
-
-0 1
-1 1
-
-0 1
-1 1
-
-
-
-0 0
-1 0
-
-0 1
-1 1
-
-0 0
-1 0
-
-0 1
-1 1
-
-
-
-0 0
-
-CS HIGH
-
-
-)
 
 
 

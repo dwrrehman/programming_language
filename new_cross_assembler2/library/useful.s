@@ -415,7 +415,7 @@ at printbinary   (note: "buffer" must be present in the executable.)
 		ri r_imm r_add bit bit '0'
 		rs r_store r_sb p bit 0
 		ri r_imm r_add p p 1
-		ri r_imm r_srl data data 1
+		ri r_imm r_sd data data 1
 		rb r_branch r_bne data 0 loop
 
 	ri r_imm r_add bit 0 newline

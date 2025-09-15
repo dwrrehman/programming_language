@@ -119,6 +119,7 @@ static int ecall(u32* registers, byte* memory) {
 
 
 
+static byte memory[1 << 23LU] = {0};
 
 
 int main(int argc, const char** argv) {
@@ -132,7 +133,6 @@ int main(int argc, const char** argv) {
 	nat text_length = 0;
 	char* text = load_file(argv[2], &text_length);
 
-	byte memory[65536] = {0};
 	u32 count = 0;
 
 	if (	text[0] == 'U' and 
@@ -170,6 +170,8 @@ if (not executing) {
 			((u32) memory[pc + 1U] <<  8U) | 
 			((u32) memory[pc + 2U] << 16U) | 
 			((u32) memory[pc + 3U] << 24U) ;
+
+		if (not word) { continue; } 
 
 		printf(" 0x%08x:   %02x %02x %02x %02x   ", pc, 
 			memory[pc + 0], memory[pc + 1], memory[pc + 2], memory[pc + 3]

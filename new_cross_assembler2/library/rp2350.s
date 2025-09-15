@@ -32,30 +32,28 @@ set reset_base 		0000_0000_0000_0000__0100_0000_0000_0010
 set io_bank0_base 	0000_0000_0000_0001__0100_0000_0000_0010
 set pads_bank0_base 	0000_0000_0000_0001__1100_0000_0000_0010
 set accessctrl_base	0000_0000_0000_0000__0110_0000_0000_0010
+
 set spi0_base		0000_0000_0000_0000__0001_0000_0000_0010
+set spi1_base		0000_0000_0000_0001__0001_0000_0000_0010
+
 set usb_base		0000_0000_0000_0000__1000_1000_0000_1010
 
+
 (clock registers)
-
-
 set clock_ref_control 	0000_1100
 set clock_ref_div 	0010_1100
-
 set clock_sys_control 	0011_1100
 set clock_sys_div 	0000_0010
-
 set clock_peri_control  0001_0010
-
 set rosc_div 		0010_1000
 
+
 (spi peripheral registers)
-
-set spi0_control0 	0
-set spi0_control1 	001
-set spi0_data 		0001
-set spi0_status 	0011
-set spi0_prescale 	0000_1
-
+set spi_control0 	0
+set spi_control1 	001
+set spi_data 		0001
+set spi_status 		0011
+set spi_prescale 	0000_1
 
 
 
