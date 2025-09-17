@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+/Users/dwrr/root/personal/executables/assembler s.s
+

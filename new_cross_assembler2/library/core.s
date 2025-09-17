@@ -1,6 +1,21 @@
+(the standard library core file, 
+defines only constants required to use the language
+updated on 1202509173.013930)
+
+
+
+
 zero false
 zero true incr true
 zero allones sub allones 1 set -1 allones
+
+(define and init arguments for stdlib macros)
+
+zero c0 zero c1
+zero c2 zero c3
+zero c3 zero c5
+zero c6 zero c7
+
 
 set stdin 0
 set stdout 1
@@ -23,7 +38,6 @@ incr x set elf_object x
 incr x set ti_txt_executable x
 incr x set uf2_executable x
 
-
 zero x set assembler_return_address x
 incr x set assembler_stack_pointer x
 incr x set assembler_pass x
@@ -41,10 +55,9 @@ incr x set assembler_stack_base x
 
 del x
 
+(init the compiletime stack pointer)
 
-
-
-
+st assembler_stack_pointer assembler_stack_base
 
 
 
@@ -117,36 +130,48 @@ set r_read 01
 set r_write 11
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(macos specific, for macho files lol)
+(macos specific, for macho executables)
 
 set min_stack_size_macos 1000_0000_0000_001
+set 16mb_stack_size_macos 0000_0000_0000_0000___0000_0000_1
 
 
 
 (arm64 machine instruction opcodes) 
 
-set mov_type_zero 01
+set subtract 1 
+set setflags 1
+
+set mem_store 		0
+set mem_load 		1
+set mem_load_signed 	01
+
+set 1_byte  0 
+set 2_bytes 1 
+set 4_bytes 01
+set 8_bytes 11
+
+set shiftnone 	0
+
+set movnegate 	0
+set movzero 	01
+set movkeep 	11
+
+set is_nonzero is_not_equal
+set is_zero is_equal
+
+set bitwise_and 	0 
+set bitwise_or 		1
+set bitwise_eor 	01
+set bitwise_and_setflags 11
+
+set shift_incr 0
+set shift_decr 1
+set shift_decr_signed 01
+
 
 
 (arm64 hardware registers)
-
 
 set a6_lr 01111
 set a6_sp 11111
@@ -215,6 +240,7 @@ set a6_poll		01100111
 set a6_posix_spawn	00101111
 set a6_openat 		111100111
 
+
 (macos undocumented system calls: )
 
 set a6_bsdthread_create			000101101
@@ -233,7 +259,6 @@ set a6_arg4 001
 set a6_arg5 101
 set a6_arg6 011
 set a6_arg7 111
-
 
 
 
@@ -258,6 +283,45 @@ set is_unsigned_less 11
 set is_unsigned_greater 0001
 set is_unsigned_less_or_equal 1001
 set is_unsigned_greater_or_equal 01
+
+
+
+
+(macos stuff: )
+
+set pagesize 		0000_0000_0000_1
+set prot_read 		1
+set prot_write 		01
+set map_private 	01
+set map_anonymous 	0000_0000_0000_1
+set map_failed 		allones
+
+
+
+(ioctl requests)
+
+set request_window_size  		0001_0110_0010_1110__0001_0000_0000_0010
+set request_get_terminal_attributes	1100_1000_0010_1110__0001_0010_0000_0010
+set request_set_terminal_attributes	0010_1000_0010_1110__0001_0010_0000_0001
+
+
+(termios structure)
+
+set terminal_attributes_inputflags	0 
+set terminal_attributes_outputflags	1
+set terminal_attributes_controlflags	01
+set terminal_attributes_localflags	11
+set terminal_attributes_controlcharacters 001
+
+
+(termios member bitfield flags)
+
+set echoinput 	0001
+set canonicalmode 0000_0000_1
+
+
+
+
 
 
 

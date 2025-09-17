@@ -92,7 +92,7 @@ static const char* node_spelling[node_type_count] = {
 	"null_node", 
 	"name_node", 
 	"identifier_node",
-	"number_node", 
+	"number_node",
 	"sum_node", 
 	"product_node", 
 	"subtraction_node",
@@ -136,7 +136,6 @@ static struct token* tokens = NULL;
 static nat token_count = 0;
 
 static nat max_at = 0;
-
 static nat node_count = 0;
 static struct node nodes[65536] = {0};
 static nat pointers[65536] = {0};
@@ -254,6 +253,249 @@ static void print_token_position(nat at) {
 	}
 	puts("\n");
 }
+
+int main(int argc, const char** argv) {
+	if (argc != 2) return puts("compiler frontend: error: no input file given");
+	text = load_file(argv[1], &text_length);
+	
+	for (nat i = 0; i < text_length; ) {
+		if (text[i] == '[') {
+			bool comment = 1;
+			while (comment and i < text_length) {
+				if (text[i] == '[') comment++;
+				if (text[i] == ']') comment--;
+				i++;
+			}
+			if (comment) printf("syntax error: unterminated comment\n");
+			continue;
+		}
+
+		printf("processing character text[%llu], \"%c\"(%d)...\n", i, text[i], text[i]);
+		if ((unsigned char) text[i] < 33) { i++; goto next_char; }
+		const char* is_operator = strchr(operators, text[i]);
+		if (is_operator) {
+			nat type = less_token + (nat)(is_operator - operators);
+			tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
+			tokens[token_count++] = (struct token) { .type = type, .location = i };
+			i++; goto next_char;
+		} 
+		for (nat k = 0; k < keyword_count; k++) {
+			const nat keyword_length = strlen(keywords[k]);
+			if (i + keyword_length <= text_length and not strncmp(text + i, keywords[k], keyword_length) and 
+			    (is_delimiter(text[i + keyword_length]))
+			) {
+				tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
+				tokens[token_count++] = (struct token) { .type = eoi_token + k, .location = i };
+				i += keyword_length;
+				goto next_char;
+			}
+		}
+
+		nat start = i;
+		nat t = i;
+		while (not is_delimiter(text[t])) t++;
+		const nat end = t;
+		if (end == start) abort();
+
+		char* string = strndup(text + start, end - start);
+		nat string_length = strlen(string);
+
+		nat r = 0, s = 1;
+		for (nat j = 0; j < string_length; j++) {
+			if (string[j] == '0') s <<= 1; 
+			else if (string[j] == '1') { r += s; s <<= 1; }
+			else goto push_name;
+		}	
+
+		tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
+		tokens[token_count++] = (struct token) { 
+			.type = number_token,
+			.value = r,
+			.location = i,
+		};
+
+		i += string_length;
+		goto next_char;
+	push_name:
+		tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
+		tokens[token_count++] = (struct token) { 
+			.type = name_token,
+			.name = string,
+			.location = i,
+		};	
+		i += string_length;
+		next_char:;
+	}
+	print_tokens();
+
+			//node: type count begin end childen
+			//token: type value location name;
+
+	nat head = 0;
+	nat begin_stack[4096] = {0};
+	nat state_stack[4096] = {0};
+	nat node_stack[4096] = {0};
+	nat stack_count = 1;
+
+	begin_stack[0] = 0;
+	state_stack[0] = 0;
+	node_stack[0] = statement_node;
+	nat at = 0;
+
+	while (at < token_count or stack_count) {
+		const nat s = state_stack[stack_count - 1], n = node_stack[stack_count - 1];
+
+		if (n == statement_node and not s) {
+
+			state_stack[stack_count - 1]++;
+			state_stack[stack_count] = 0;
+			begin_stack[stack_count] = at;
+			node_stack[stack_count++] = identifier_node;
+			continue;
+
+		} else if (n == statement_node and s == 1) {
+
+			stack_count--;			
+			nodes[node_count++] = (struct node) {
+				.type = n, 
+				.begin = begin, 
+				.end = at,
+				.count = 1,
+				.children = heap,
+			};
+			heap += 1;
+			
+
+		} else if (n == identifier_node) {
+
+			if (tokens[at].type == name_token) at++; else puts("error: expected name in set statement");
+			heap[
+
+		} else if (n == assignment_node and not s) {
+			state_stack[stack_count - 1]++;
+			state_stack[stack_count] = 0;
+			begin_stack[stack_count] = at;
+			node_stack[stack_count++] = identifier_node;
+			continue;
+
+		} else if (n == assignment_node and s == 1) {
+			if (tokens[at].type == equal_token) at++; else puts("error: expected '=' operator in set statement");
+			state_stack[stack_count - 1]++;
+			state_stack[stack_count] = 0;
+			begin_stack[stack_count] = at;
+			node_stack[stack_count++] = expression_node;
+			continue;
+			
+		} else if (n == assignment_node and state == 2) {
+			stack_count--;
+			
+			nodes[node_count++] = (struct node) {
+				.type = n, 
+				.begin = begin, 
+				.end = at,
+				.count = 2,
+				.children = heap,
+			};
+			heap += 2;
+		}
+	}
+
+	print_syntax_tree(root, 0);
+	puts("");
+	print_nodes();
+	puts("");
+	printf("root = %llu\n", root);
+	puts("");
+	print_nats(pointers, heap + 10 - pointers);
+	puts("");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	/*if (root == error) {
+		printf("compiler: syntax parsing error: error at token: %llu\n", max_at);
+		if (max_at < token_count) print_string_index(tokens[max_at].location);
+		else puts("[could not print error token position...]");
+		abort();
+	}
+
+	if (nodes[root].end != token_count) {
+		printf("compiler: syntax parsing error: error at token: %llu\n", max_at);
+		if (max_at < token_count) print_string_index(tokens[max_at].location);
+		else puts("[could not print error token position...]");
+		abort();
+	}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+
+
 
 
 static nat terminal(nat type, nat at) {
@@ -571,169 +813,15 @@ done:
 
 
 
-int main(int argc, const char** argv) {
-	if (argc != 2) return puts("compiler frontend: error: no input file given");
-	text = load_file(argv[1], &text_length);
-	
-	for (nat i = 0; i < text_length; ) {
-		if (text[i] == '[') {
-			bool comment = 1;
-			while (comment and i < text_length) {
-				if (text[i] == '[') comment++;
-				if (text[i] == ']') comment--;
-				i++;
-			}
-			if (comment) printf("syntax error: unterminated comment\n");
-			continue;
-		}
 
-		printf("processing character text[%llu], \"%c\"(%d)...\n", i, text[i], text[i]);
-		if ((unsigned char) text[i] < 33) { i++; goto next_char; }
-		const char* is_operator = strchr(operators, text[i]);
-		if (is_operator) {
-			nat type = less_token + (nat)(is_operator - operators);
-			tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
-			tokens[token_count++] = (struct token) { .type = type, .location = i };
-			i++; goto next_char;
-		} 
-		for (nat k = 0; k < keyword_count; k++) {
-			const nat keyword_length = strlen(keywords[k]);
-			if (i + keyword_length <= text_length and not strncmp(text + i, keywords[k], keyword_length) and 
-			    (is_delimiter(text[i + keyword_length]))
-			) {
-				tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
-				tokens[token_count++] = (struct token) { .type = eoi_token + k, .location = i };
-				i += keyword_length;
-				goto next_char;
-			}
-		}
 
-		nat start = i;
-		nat t = i;
-		while (not is_delimiter(text[t])) t++;
-		const nat end = t;
-		if (end == start) abort();
 
-		char* string = strndup(text + start, end - start);
-		nat string_length = strlen(string);
 
-		nat r = 0, s = 1;
-		for (nat j = 0; j < string_length; j++) {
-			if (string[j] == '0') s <<= 1; 
-			else if (string[j] == '1') { r += s; s <<= 1; }
-			else goto push_name;
-		}	
 
-		tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
-		tokens[token_count++] = (struct token) { 
-			.type = number_token,
-			.value = r,
-			.location = i,
-		};
 
-		i += string_length;
-		goto next_char;
-	push_name:
-		tokens = realloc(tokens, sizeof(struct token) * (token_count + 1));
-		tokens[token_count++] = (struct token) { 
-			.type = name_token,
-			.name = string,
-			.location = i,
-		};	
-		i += string_length;
-		next_char:;
-	}
-	print_tokens();
 
-	const nat root = statement_list(0);
-	if (root == error) {
-		printf("compiler: syntax parsing error: error at token: %llu\n", max_at);
-		if (max_at < token_count) print_string_index(tokens[max_at].location);
-		else puts("[could not print error token position...]");
-		abort();
-	}
 
-	if (nodes[root].end != token_count) {
-		printf("compiler: syntax parsing error: error at token: %llu\n", max_at);
-		if (max_at < token_count) print_string_index(tokens[max_at].location);
-		else puts("[could not print error token position...]");
-		abort();
-	}
-
-	print_syntax_tree(root, 0);
-	puts("");
-	print_nodes();
-	puts("");
-	printf("root = %llu\n", root);
-	puts("");
-	print_nats(pointers, heap + 10 - pointers);
-	puts("");
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**/
+*/
 
 
 

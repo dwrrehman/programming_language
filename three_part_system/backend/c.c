@@ -765,7 +765,15 @@ int main(int argc, const char** argv) {
 	nat stack[4096] = {0};
 	nat stack_count = traversal_count;
 
-	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;          we are missing side information in the state!!!!!!!!!!!!!! 1202508251.181443 
+
+
+	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;          
+
+			//we are missing side information in the state!!!!!!!!!!!!!! 1202508251.181443 
+
+
+
+
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -822,17 +830,17 @@ int main(int argc, const char** argv) {
 				const nat cp_t = is_copy[pred * var_count + var];
 				const nat cp_v = copy_of[pred * var_count + var];
 	
-				if (dd) { printf("info: [pred=%llu]: ct_t = %llu, ct_v = %llu\n", pred, ct_t, ct_v); getchar(); } 
+				if (dd) { printf("info: [pred=%llu]: ct_t = %llu, ct_v = %llu\n", pred, ct_t, ct_v); /*getchar();*/ } 
 
-				if (ct_t == 0) { if (dd) { puts("future set to 0! (rt!)"); getchar(); }  future_type = 0; first_ct = 0; } 
+				if (ct_t == 0) { if (dd) { puts("future set to 0! (rt!)"); /*getchar();*/ }  future_type = 0; first_ct = 0; } 
 				else if (first_ct) { 
-					if (dd) { puts("first! future set to 1! (ct!)"); getchar(); } 
+					if (dd) { puts("first! future set to 1! (ct!)"); /*getchar();*/ } 
 					future_type = 1;
 					future_value = ct_v; 
 					first_ct = 0;
 
 				} else if (future_value != ct_v) { 
-					if (dd) { puts("value mismatch! (rt)"); getchar(); } 
+					if (dd) { puts("value mismatch! (rt)"); /*getchar();*/ } 
 					future_type = 0;
 				}
 
@@ -1224,6 +1232,31 @@ int main(int argc, const char** argv) {
 
 	exit(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

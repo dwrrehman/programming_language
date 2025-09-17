@@ -1,17 +1,6 @@
 (some useful routines for the standard library)
 
-set '0' 000011
-set newline 0101
-
-st assembler_stack_pointer assembler_stack_base
-
-zero c0 zero c1
-zero c2 zero c3
-zero c3 zero c5
-zero c6 zero c7
-
 eq 0 0 skip_all_routines
-
 
 at function_begin
 	ld ra 0
@@ -439,7 +428,6 @@ at printbinary   (note: "buffer" must be present in the executable.)
 	lt 0 0 printbinary
 
 
-
 at readstring
 	ld ra 0
 	set c0 ra function_begin
@@ -460,17 +448,6 @@ at readstring
 	eq 0 0 ra del ra 
 	del string del length
 	lt 0 0 readstring
-
-
-at stringsequal
-	ld ra 0
-	set c0 ra function_begin
-
-	eq 0 0 allones
-	str 'unimplemented'
-
-	function_end
-	eq 0 0 ra del ra
 
 
 at decrement
@@ -496,6 +473,194 @@ at increment
 	eq 0 0 ra del ra
 	lt 0 0 increment
 	
+
+
+(
+
+set begin 	0001
+set end   	1001
+set cursor   	0101
+set inputchar   1101
+set size 	0011
+set temp 	1011
+
+zero function_call_history
+set function_labels_base 0000_0000_001
+
+eq 0 0 main
+
+at printnumber           (destroys data c0 register)
+	ld ra 0
+	set data c0
+	set c0 ra function_begin
+
+	set function_base function_labels_base
+	add function_base function_call_history
+
+	set off_save function_base
+	set writedigit_save function_base incr writedigit_save
+
+	add function_call_history 01 ( label count ) 
+
+	at loop
+		ld off off_save
+		tbz data 0 off true
+		adr a6_arg1 zerodigit 0
+		ld writedigit writedigit_save
+		jmp 0 writedigit
+
+	at off
+		st off_save off
+		adr a6_arg1 onedigit 0
+
+	at writedigit
+		st writedigit_save writedigit
+		mov a6_number a6_write shiftnone movzero 
+		mov a6_arg0 stdout shiftnone movzero 
+		mov a6_arg2 1 shiftnone movzero
+		svc
+		addr 0 setflags data a6_zero data shift_decr 1
+		bc is_nonzero loop 
+	
+	del data 
+	del loop 
+	del off 
+	del writedigit
+
+	del off_save
+	del writedigit_save
+	del function_base
+	
+	mov a6_number a6_write shiftnone movzero 
+	mov a6_arg0 stdout shiftnone movzero 
+	adr a6_arg1 newlinestring 0
+	mov a6_arg2 1 shiftnone movzero
+	svc
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 printnumber
+)
+
+
+
+
+
+
+
+
+at armwritechar
+	ld ra 0
+	set char c0
+	set c0 ra function_begin
+
+	memi mem_store 1_byte char a6_sp 0
+
+	mov a6_number a6_write shiftnone movzero 
+	mov a6_arg0 stdout shiftnone movzero 
+	addi a6_arg1 a6_sp 0 0 0 0
+	mov a6_arg2 1 shiftnone movzero 
+	svc
+
+	del char
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 armwritechar
+	
+
+
+at armreadchar
+	ld ra 0
+	set char c0
+	set c0 ra function_begin
+
+	mov a6_number a6_read shiftnone movzero 
+	mov a6_arg0 stdin shiftnone movzero 
+	addi a6_arg1 a6_sp 0 0 0 0
+	mov a6_arg2 1 shiftnone movzero 
+	svc
+
+	memi mem_load 1_byte char a6_sp 0
+
+	del char 
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 armreadchar
+	
+
+at emitnl
+	ld ra 0
+	set c0 ra function_begin
+
+	emit 1 newline
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 emitnl
+
+
+at allocatepages
+	ld ra 0
+	set count c0
+	set c0 ra function_begin
+
+	set prot prot_read 
+	or prot prot_write
+	set flags map_private 
+	or flags map_anonymous	
+	set allocationsize pagesize
+	mul allocationsize count
+	
+	mov a6_number a6_mmap shiftnone movzero 
+	mov a6_arg0 0 shiftnone movzero
+	mov a6_arg1 allocationsize shiftnone movzero
+	mov a6_arg2 prot shiftnone movzero
+	mov a6_arg3 flags shiftnone movzero
+	mov a6_arg4 0 shiftnone movnegate
+	mov a6_arg5 0 shiftnone movzero
+	svc
+
+	del count del prot del flags
+	del allocationsize
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 allocatepages
+	
+
+
+at a6li 
+	ld ra 0
+	set destination c0
+	set immediate c1
+	set c0 ra function_begin
+
+	set i0 immediate sd i0 0000_00 and i0 1111_1111_1111_1111
+	set i1 immediate sd i1 0000_10 and i1 1111_1111_1111_1111
+	set i2 immediate sd i2 0000_01 and i2 1111_1111_1111_1111
+	set i3 immediate sd i3 0000_11 and i3 1111_1111_1111_1111
+	
+	mov destination i0 00 movzero
+	mov destination i1 10 movkeep
+	mov destination i2 01 movkeep
+	mov destination i3 11 movkeep
+
+	del i0
+	del i1
+	del i2
+	del i3
+	del destination
+	del immediate
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 a6li
+
+
+
+
+
+
+
 
 
 at skip_all_routines del skip_all_routines
@@ -653,6 +818,21 @@ at or    (a = a | b    in 64 bits)
 	eq 0 0 ra del ra 
 	lt 0 0 or
 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
