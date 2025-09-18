@@ -1,5 +1,9 @@
 (some useful routines for the standard library)
 
+zero function_call_history
+set function_labels_base 0000_0000_001
+
+
 eq 0 0 skip_all_routines
 
 at function_begin
@@ -74,11 +78,20 @@ at arm64
 	st output_format macho_executable
 	st overwrite_output true
 
-	st executable_stack_size min_stack_size_macos
+	st executable_stack_size 16mb_stack_size_macos
 
 	function_end
 	eq 0 0 ra del ra lt 0 0 arm64
 
+
+at allocate_16m6_stack_memory
+	ld ra 0
+	set c0 ra function_begin
+	addi a6_sp a6_sp 0000_0000_0001 1 0 1
+	addi a6_sp a6_sp 0000_0000_0001 1 0 1
+	function_end
+	eq 0 0 ra del ra 
+	lt 0 0 allocate_16m6_stack_memory
 
 
 at ctabort
@@ -236,8 +249,8 @@ at exit
 
 	at arm64_exit 
 	
-		mov a6_number a6_exit 0 mov_type_zero
-		mov a6_arg0 code 0 mov_type_zero
+		mov a6_number a6_exit 0 movzero
+		mov a6_arg0 code 0 movzero
 		svc
 
 	eq 0 0 return
@@ -270,10 +283,10 @@ at writestring
 
 	at arm64_writestring
 
-		mov a6_number a6_write 0 mov_type_zero
-		mov a6_arg0 stdout 0 mov_type_zero
+		mov a6_number a6_write 0 movzero
+		mov a6_arg0 stdout 0 movzero
 		adr a6_arg1 string 0
-		mov a6_arg2 length 0 mov_type_zero
+		mov a6_arg2 length 0 movzero
 		svc
 	
 	eq 0 0 return
@@ -475,21 +488,20 @@ at increment
 	
 
 
-(
 
-set begin 	0001
-set end   	1001
-set cursor   	0101
-set inputchar   1101
-set size 	0011
-set temp 	1011
 
-zero function_call_history
-set function_labels_base 0000_0000_001
 
-eq 0 0 main
+at deprecated_arm64_printnumber          
 
-at printnumber           (destroys data c0 register)
+	(
+	 this function is being replaced, dont use.  
+	 this function destroys data c0 registers 
+		contents after being executed. 
+
+		it also requires that  zerodigit, onedigit, and newlinestring are present in the executable
+	)
+
+
 	ld ra 0
 	set data c0
 	set c0 ra function_begin
@@ -498,9 +510,10 @@ at printnumber           (destroys data c0 register)
 	add function_base function_call_history
 
 	set off_save function_base
-	set writedigit_save function_base incr writedigit_save
+	set writedigit_save function_base 
+	incr writedigit_save
 
-	add function_call_history 01 ( label count ) 
+	add function_call_history 01     ( 01 == label count,   ie, the number of forwards branches in this routine ) 
 
 	at loop
 		ld off off_save
@@ -513,6 +526,7 @@ at printnumber           (destroys data c0 register)
 		st off_save off
 		adr a6_arg1 onedigit 0
 
+
 	at writedigit
 		st writedigit_save writedigit
 		mov a6_number a6_write shiftnone movzero 
@@ -523,6 +537,7 @@ at printnumber           (destroys data c0 register)
 		bc is_nonzero loop 
 	
 	del data 
+
 	del loop 
 	del off 
 	del writedigit

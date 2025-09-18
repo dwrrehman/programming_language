@@ -1059,7 +1059,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 		} else if (op == addx) {
 			puts("addx: unimplemented so far, fix me "); 
 			abort();
-			if (a6 >= (1LLU << 1LLU)) print_error("addx: is subtract bit", a6, pc, 7);
+			/*if (a6 >= (1LLU << 1LLU)) print_error("addx: is subtract bit", a6, pc, 7);
 			if (a5 >= (1LLU << 1LLU)) print_error("addx: should set flags bit", a5, pc, 6);
 			if (a4 >= (1LLU << 2LLU)) print_error("addx: ", a4, pc, 5);
 			if (a3 >= (1LLU << 6LLU)) print_error("addx: shift amount", a3, pc, 4);
@@ -1077,7 +1077,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a4 << 10U) | 
 				(a1 << 5U) | 
 				(a0);
-			insert_u32((u32) word);
+			insert_u32((u32) word);*/
 
 		} else if (op == divr) {
 			if (a3 >= (1LLU << 1LLU)) print_error("divr: is signed bit", a3, pc, 4);
@@ -1372,8 +1372,8 @@ process_file:;
 		goto push_argument;
 
 	undefined_var:
-		if (	op == set and arg_count == 2 or
-			op == st  and arg_count == 2 or    //TODO: remove this?... its not neccesary lol....
+		if (	//op == set and arg_count == 2 or
+			//op == st  and arg_count == 2 or    //TODO: remove this?... its not neccesary lol....
 			(op > eoi and op < isa_count)
 		) goto define_name;
 
