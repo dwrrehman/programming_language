@@ -179,6 +179,9 @@ at rp2350
 
 (1202508133.235719 this function is deprecated, as theres a more efficient way to do it...)
 
+(
+deprecated, dont use this function:
+
 at setup_output
 
 	ld ra 0
@@ -205,6 +208,11 @@ at setup_output
 	function_end
 	eq 0 0 ra del ra
 	lt 0 0 setup_output	
+
+)
+
+
+
 
 
 at processor_sleep

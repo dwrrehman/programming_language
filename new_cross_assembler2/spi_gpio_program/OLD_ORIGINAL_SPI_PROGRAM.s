@@ -27,6 +27,31 @@ set data 	001
 set address 	101
 set temp	011
 
+
+
+(
+transmit
+
+
+	rs r_store r_sw sio 0 sio_gpio_out
+
+	set c0 data set c1 0101_0000_0000_0010 li
+	rs r_store r_sw spi data spi_data
+	set c0 data set c1 1111_1111_1111_1111 li
+	rs r_store r_sw spi data spi_data
+
+at wait
+	ri r_load r_lw data spi spi_status
+	ri r_imm r_and data data 0000_1
+	rb r_branch r_bne data 0 wait del wait
+
+	set c0 data set c1 1 li
+	rs r_store r_sw sio 0 sio_gpio_out
+)
+
+
+
+
 rp2350
 sect flash_start
 start_rp2350_binary
@@ -40,11 +65,11 @@ set c0 address set c1 clocks_base li
 ri r_imm r_add data 0 0000_0000_0001
 rs r_store r_sw address data clock_peri_control
 
-set c0 data set c1 0000_0000_0000_0000___11 li
+(set c0 data set c1 0000_0000_0000_0000___1 li
 rs r_store r_sw address data clock_ref_div
 
-set c0 data set c1 0000_0000_0000_0000___1111 li
-rs r_store r_sw address data clock_sys_div
+set c0 data set c1 0000_0000_0000_0000___1 li
+rs r_store r_sw address data clock_sys_div)
 
 set c0 address set c1 io_bank0_base li
 set c0 data set c1 101 li
@@ -91,21 +116,38 @@ set c0 spi set c1 spi0_base li
 set c0 sio set c1 sio_base li
 set c0 value1 set c1 1 li
 
-set c0 data set c1 1111_0000_1111_1111 li
+set c0 data set c1 1111 li
 rs r_store r_sw spi data spi_control0
-set c0 data set c1 0111_1111 li
+set c0 data set c1 01 li
 rs r_store r_sw spi data spi_prescale
 set c0 data set c1 01 li
 rs r_store r_sw spi data spi_control1
 
+
+
+
 rs r_store r_sw sio 0 sio_gpio_out
+
+set c0 data set c1 0000_0000_0000_0010 li
+rs r_store r_sw spi data spi_data
+rs r_store r_sw spi 0 spi_data
+
+at wait
+	ri r_load r_lw data spi spi_status
+	ri r_imm r_and data data 0000_1
+	rb r_branch r_bne data 0 wait del wait
+
+rs r_store r_sw sio value1 sio_gpio_out
+
+
 
 at loop
 
-
 	rs r_store r_sw sio 0 sio_gpio_out
 
-	set c0 data set c1 1010_1010_0011_0110 li
+	set c0 data set c1 0010_1000_0000_0010 li
+	rs r_store r_sw spi data spi_data
+	set c0 data set c1 1111_1111_1111_1111 li
 	rs r_store r_sw spi data spi_data
 
 	at wait
@@ -117,12 +159,45 @@ at loop
 	rs r_store r_sw sio data sio_gpio_out
 
 
+
+
 	set i temp
-	set c0 i set c1 1111_1111_1111_1111_1111 li
+	set c0 i set c1 1111_1111_1111_1111_1111_11 li
 	at l
 		ri r_imm r_add i i 1111_1111_1111
 		rb r_branch r_bne i 0 l
 	del l del i
+
+
+
+	rs r_store r_sw sio 0 sio_gpio_out
+
+	set c0 data set c1 0010_1000_0000_0010 li
+	rs r_store r_sw spi data spi_data
+	rs r_store r_sw spi 0 spi_data	
+
+	at wait
+		ri r_load r_lw data spi spi_status
+		ri r_imm r_and data data 0000_1
+		rb r_branch r_bne data 0 wait del wait
+
+	rs r_store r_sw sio value1 sio_gpio_out
+
+
+
+
+
+	set i temp
+	set c0 i set c1 1111_1111_1111_1111_1111_11 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+
+
+
+
 
 	rj r_jal 0 loop del loop
 
@@ -142,30 +217,6 @@ eoi
 
 
 
-(	rs r_store r_sw sio 0 sio_gpio_out
-
-	set c0 data set c1 0010_1000_0000_0010 li
-	rs r_store r_sw spi data spi_data
-	rs r_store r_sw spi 0 spi_data	
-
-	at wait
-		ri r_load r_lw data spi spi_status
-		ri r_imm r_and data data 0000_1
-		rb r_branch r_bne data 0 wait del wait
-
-	rs r_store r_sw sio value1 sio_gpio_out
-
-
-
-	(set i temp
-	set c0 i set c1 1111_1111_1111_1111_1111_11 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i)
-
-
-)
 
 
 
@@ -184,32 +235,6 @@ eoi
 
 
 
-
-
-
-
-
-
-
-(
-transmit
-
-
-	rs r_store r_sw sio 0 sio_gpio_out
-
-	set c0 data set c1 0101_0000_0000_0010 li
-	rs r_store r_sw spi data spi_data
-	set c0 data set c1 1111_1111_1111_1111 li
-	rs r_store r_sw spi data spi_data
-
-at wait
-	ri r_load r_lw data spi spi_status
-	ri r_imm r_and data data 0000_1
-	rb r_branch r_bne data 0 wait del wait
-
-	set c0 data set c1 1 li
-	rs r_store r_sw sio 0 sio_gpio_out
-)
 
 
 
@@ -1854,7 +1879,6 @@ at loop
 	lt i 0000_1000_0100_1100_0010_1010_0110_1110 loop
 halt
 )
-
 
 
 

@@ -1,0 +1,442 @@
+// a program running on a spare w microcontroller that will communicate data recieved on pins, to a udp network socket which my computer can connect to via a udp client c program, to debug the LED display  basically 
+// written on 1202509103.185803 by dwrr
+
+#include <WiFi.h>
+#include <WiFiUdp.h>
+
+
+#include <stdio.h>
+#include <string.h>
+#include "pico/stdlib.h"
+#include "hardware/spi.h"
+
+
+const char* ap_ssid = "daniels computer"; 
+const char* ap_password= "Daniel98"; 
+
+uint8_t max_connections=1;
+int current_stations=0, new_stations=0;
+IPAddress local_IP(192, 168, 4, 1); 
+IPAddress gateway(192, 168, 4, 1);  
+IPAddress subnet(255, 255, 255, 0);
+IPAddress IP;
+unsigned int localPort = 25536;  // local port to listen on
+
+// buffers for receiving and sending data
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE + 1];  // buffer to hold incoming packet,
+char ReplyBuffer[] = "acknowledged\n";        // a string to send back
+
+WiFiUDP Udp;
+
+const char* stringify_status(int status) {
+  switch (status) {
+    case WL_NO_SHIELD: return "WL_NO_SHIELD";
+    case WL_IDLE_STATUS: return "WL_IDLE_STATUS";
+    case WL_NO_SSID_AVAIL: return "WL_NO_SSID_AVAIL";
+    case WL_SCAN_COMPLETED: return "WL_SCAN_COMPLETED";
+    case WL_CONNECTED: return "WL_CONNECTED";
+    case WL_CONNECT_FAILED: return "WL_CONNECT_FAILED";
+    case WL_CONNECTION_LOST: return "WL_CONNECTION_LOST";
+    case WL_DISCONNECTED: return "WL_DISCONNECTED";
+    case WL_AP_CONNECTED: return "WL_AP_CONNECTED";
+    case WL_AP_FAILED: return "WL_AP_FAILED";
+    case WL_AP_LISTENING: return "WL_AP_LISTENING";
+  }
+  return "ERROR:UNKNOWN-WL-CODE";
+}
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(9600);
+
+  for (int i = 0; i < 5; i++) {
+    Serial.print("testing serial connection!\n");
+    delay(1000);
+  }
+
+
+
+///////////////////
+my_loop:;
+#define BUF_LEN         4
+
+    Serial.println("SPI EXAMPLE!:");
+
+    spi_init(spi_default, 1000 * 1000);
+    spi_set_slave(spi_default, true);
+    spi_set_format(spi_default, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+
+    gpio_set_function(PICO_DEFAULT_SPI_RX_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(PICO_DEFAULT_SPI_SCK_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(PICO_DEFAULT_SPI_TX_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(PICO_DEFAULT_SPI_CSN_PIN, GPIO_FUNC_SPI);
+
+    uint16_t out_buf[BUF_LEN], in_buf[BUF_LEN];
+    for (size_t i = 0; i < BUF_LEN; ++i) out_buf[i] = ~i;
+
+    Serial.printf("SPI slave says: When reading from MOSI, the following buffer will be written to MISO:\n");
+    for (size_t i = 0; i < BUF_LEN; i++) {
+        if (i && i % 16 == 0) Serial.print('\n');
+        Serial.printf("%04x ", out_buf[i]);
+    }
+     Serial.print('\n');
+    
+    for (size_t i = 0; ; ++i) {
+
+        spi_write16_read16_blocking(spi_default, out_buf, in_buf, BUF_LEN);
+
+        Serial.printf("SPI slave says: read page %d from the MOSI line:\n", i);
+
+        for (size_t i = 0; i < BUF_LEN; i++) {
+            if (i && i % 16 == 0) Serial.print('\n');
+            Serial.printf("%04x ", in_buf[i]);
+        }
+
+        Serial.print('\n');
+    }
+
+  
+  goto my_loop;
+
+///////////////////
+
+
+
+
+
+
+
+loop:
+  Serial.print("trying to setup access point...\n");
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(local_IP, gateway, subnet); 
+  
+  if (WiFi.softAP(ap_ssid,ap_password, 1, false, max_connections)) {
+
+    Serial.print("access point is created with SSID: ");
+    Serial.println(ap_ssid);
+    Serial.print("max connections allowed: ");
+    Serial.println(max_connections);
+    Serial.print("access point IP: ");
+    Serial.println(WiFi.softAPIP());
+
+  } else {
+    Serial.println("error: unable to create access point");
+    goto loop;
+  }
+ 
+  Serial.print("Connected! IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.printf("UDP server on port %d\n", localPort);
+  Udp.begin(localPort);
+
+    digitalWrite(LED_BUILTIN, 1);
+    delay(100);
+    digitalWrite(LED_BUILTIN, 0);
+    delay(100);
+
+}
+
+char response[UDP_TX_PACKET_MAX_SIZE / 2 + 1];
+
+void loop() {
+  // if there's data available, read a packet
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    Serial.printf("Received packet of size %d from %s:%d\n    (to %s:%d)\n", 
+      packetSize, 
+      Udp.remoteIP().toString().c_str(), 
+      Udp.remotePort(), 
+      Udp.destinationIP().toString().c_str(), 
+      Udp.localPort()
+    );
+
+    // read the packet into packetBufffer
+    Serial.print("info: reading ");
+    Serial.print(UDP_TX_PACKET_MAX_SIZE / 2);
+    Serial.print(" bytes from UDP socket...\n");
+    int n = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE / 2);
+    packetBuffer[n] = 0;
+    Serial.println("Length:");
+    Serial.println(n);
+    Serial.println(packetSize);
+    Serial.println("Contents:");
+    Serial.println(packetBuffer);
+
+    Serial.print("echoing the same input, but incremented...\n");
+    for (int i = 0; i < packetSize; i++) { 
+      response[i] = packetBuffer[i] + 1;
+    }
+
+    // send a reply, to the IP address and port that sent us the packet we received
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write(response);
+    Udp.endPacket();
+
+    digitalWrite(LED_BUILTIN, 1);
+    delay(100);
+    digitalWrite(LED_BUILTIN, 0);
+    delay(100);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+#include <WiFi.h>
+#include <WebServer.h>
+
+#include "hardware/watchdog.h"
+
+void handle_OnConnect();
+void handle_update();
+void handle_restart();
+void handle_NotFound();
+void software_reset();
+String HTML();
+String status = "Connected";
+// Specifying the SSID and Password of the AP
+ 
+const char* ap_ssid = "PicoW-AP"; //Access Point SSID
+const char* ap_password= "123456789"; //Access Point Password
+uint8_t max_connections=1;//Maximum Connection Limit for AP
+int current_stations=0, new_stations=0;
+
+IPAddress local_IP(192, 168, 4, 1);  // Set your desired static IP address
+IPAddress gateway(192, 168, 4, 1);   // Usually the same as the IP address
+IPAddress subnet(255, 255, 255, 0);
+IPAddress IP;
+
+//Specifying the Webserver instance to connect with HTTP Port: 80
+WebServer server(80);
+ 
+void setup() {
+  //Start the serial communication channel
+  Serial.begin(9600);
+  while (!Serial); // Wait untill serial is available
+  Serial.println();
+ 
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(local_IP, gateway, subnet);  // Configure static IP
+   
+  //Setting the AP Mode with SSID, Password, and Max Connection Limit
+  if(WiFi.softAP(ap_ssid,ap_password,1,false,max_connections)==true)
+  {
+    Serial.print("Access Point is Created with SSID: ");
+    Serial.println(ap_ssid);
+    Serial.print("Max Connections Allowed: ");
+    Serial.println(max_connections);
+    Serial.print("Access Point IP: ");
+    Serial.println(WiFi.softAPIP());
+  }
+  else
+  {
+    Serial.println("Unable to Create Access Point");
+  }
+ 
+  //Specifying the functions which will be executed upon corresponding GET request from the client
+  server.on("/",HTTP_GET, handle_OnConnect);
+  server.on("/update", handle_update);
+  server.on("/restart",handle_restart);
+  server.onNotFound(handle_NotFound);
+   
+  //Starting the Server
+  server.begin();
+  Serial.println("HTTP Server Started");
+}
+ 
+void loop() {
+  //Assign the server to handle the clients
+  server.handleClient();
+     
+  //Continuously check how many stations are connected to Soft AP and notify whenever a new station is connected or disconnected
+  new_stations=WiFi.softAPgetStationNum();
+   
+  if(current_stations<new_stations)//Device is Connected
+  {
+    current_stations=new_stations;
+    Serial.print("New Device Connected to SoftAP... Total Connections: ");
+    Serial.println(current_stations);
+  }
+   
+  if(current_stations>new_stations)//Device is Disconnected
+  {
+    current_stations=new_stations;
+    Serial.print("Device disconnected from SoftAP... Total Connections: ");
+    Serial.println(current_stations);
+  }
+ 
+  //Turn the LEDs ON/OFF as per their status set by the connected client
+   
+}
+ 
+void handle_OnConnect()
+{
+  status = "Connected to AP";
+  Serial.println("Client Connected");
+  server.send(200, "text/html", HTML()); 
+}
+ 
+void handle_update()
+{
+  status = "Update initiated...";
+  Serial.println("Update initiated...");
+  String ssid_text = server.arg("ssid_txt");
+  String pwd_text = server.arg("pwd_txt");
+  server.send(200, "text/html", HTML());
+  Serial.printf("SSID: %s\n", ssid_text.c_str());
+  Serial.printf("Password: %s\n", pwd_text.c_str());
+  status = "Update complete!";
+  delay(1000);
+  server.send(200, "text/html", HTML());
+}
+ 
+void handle_restart()
+{
+  status = "Restart initiated...";
+  Serial.println("Restart initiated...");
+  server.send(200, "text/html", HTML());
+  delay(700);
+  software_reset();
+}
+ 
+
+void handle_NotFound()
+{
+  server.send(404, "text/plain", "Not found");
+}
+ 
+String HTML()
+{
+  String msg="<!DOCTYPE html> <html>\n";
+  msg+="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  msg+="<title>Config Update</title>\n";
+  msg+="<style>html {font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+  msg+="body {margin-top: 50px;} h1 {color: #444444; margin: 50px auto 30px;} h3 {color: #444444; margin-bottom: 50px;}\n";
+  msg+=".button {display: block; width: 180px; background-color: #0d81ec; border: none; color: white; padding: 13px 30px; text-decoration: none; font-size: 25px; margin: 0px auto 35px; cursor: pointer; border-radius: 4px;}\n";
+  msg+=".button-update {background-color: #0d81ec;}\n";
+  msg+=".button-update:active {background-color: #0d81ec;}\n";
+  msg+=".button-restart {background-color: #ff0000;}\n";
+  msg+=".button-restart:active {background-color: #ff0000;}\n";
+  msg+=".textbox {width: 200px; height: 30px; border: none; background-color: #f48100; color: white; padding: 5px; font-size: 16px; border-radius: 4px; margin: 0px auto 35px;}\n";
+  msg+=".status-field {width: 300px; height: 30px; border: none; background-color: #ffffff; color: black; padding: 5px; font-size: 16px; border-radius: 4px; margin: 0px auto 15px;}\n";
+  msg+="</style>\n";
+  msg+="</head>\n";
+  msg+="<body>\n";
+  msg+="<h1>PicoW Config Update</h1>\n";
+  msg+="<h3>Using Access Point (AP) Mode</h3>\n";
+  msg+="<form method='POST' action='/update'>\n";
+  msg+="<input type=\"text\" class=\"textbox\" name=\"ssid_txt\" id=\"ssid_txt\">\n";
+  msg+="<input type=\"text\" class=\"textbox\" name=\"pwd_txt\" id=\"pwd_txt\">\n";
+  msg+="<input type='submit' value='Update' class=\"button button-update\">\n";
+  msg+="</form>\n";
+  msg+="<form method='POST' action='/restart'>\n";
+  msg+="<input type='submit' value='Restart' class=\"button button-restart\">\n";
+  msg+="</form>\n";
+  msg+="<p>Status:</p>\n";
+
+  msg+="<input type=\"text\" class=\"status-field\" readonly name=\"status_txt\" value=\"" + status + "\">\n";
+   
+  msg+="</body>\n";
+  msg+="</html>\n";
+  Serial.printf("%s",msg.c_str());
+  return msg;
+}
+
+void software_reset()
+{
+    watchdog_enable(1, 1);
+    while(1);
+}
+
+
+*/
+
+
+
+
+
+
+
+
+
+

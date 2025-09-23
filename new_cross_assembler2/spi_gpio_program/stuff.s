@@ -40,10 +40,10 @@ set c0 address set c1 clocks_base li
 ri r_imm r_add data 0 0000_0000_0001
 rs r_store r_sw address data clock_peri_control
 
-set c0 data set c1 0000_0000_0000_0000___11 li
+set c0 data set c1 0000_0000_0000_0000___1111_11 li
 rs r_store r_sw address data clock_ref_div
 
-set c0 data set c1 0000_0000_0000_0000___1111 li
+set c0 data set c1 0000_0000_0000_0000___1111_1111_111 li
 rs r_store r_sw address data clock_sys_div
 
 set c0 address set c1 io_bank0_base li
@@ -91,9 +91,9 @@ set c0 spi set c1 spi0_base li
 set c0 sio set c1 sio_base li
 set c0 value1 set c1 1 li
 
-set c0 data set c1 1111_0000_1111_1111 li
+set c0 data set c1 1111_0000_1111_1110 li
 rs r_store r_sw spi data spi_control0
-set c0 data set c1 0111_1111 li
+set c0 data set c1 0111_1110 li
 rs r_store r_sw spi data spi_prescale
 set c0 data set c1 01 li
 rs r_store r_sw spi data spi_control1
@@ -117,8 +117,10 @@ at loop
 	rs r_store r_sw sio data sio_gpio_out
 
 
+
+
 	set i temp
-	set c0 i set c1 1111_1111_1111_1111_1111 li
+	set c0 i set c1 1111_1111_1111 li
 	at l
 		ri r_imm r_add i i 1111_1111_1111
 		rb r_branch r_bne i 0 l

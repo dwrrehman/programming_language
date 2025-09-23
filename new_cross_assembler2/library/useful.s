@@ -1,5 +1,6 @@
 (some useful routines for the standard library)
 
+
 zero function_call_history
 set function_labels_base 0000_0000_001
 
@@ -312,6 +313,11 @@ at writestring
 
 
 at readchar
+
+	(buffer is an external symbol, this macro will not undefine it, only define on use.)
+
+	set buffer buffer    (note: buffer must be defined in the users program already. )
+
 	ld ra 0
 	set out c0
 	set c0 ra function_begin
@@ -555,7 +561,7 @@ at deprecated_arm64_printnumber
 	function_end
 	eq 0 0 ra del ra
 	lt 0 0 printnumber
-)
+
 
 
 

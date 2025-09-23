@@ -137,7 +137,42 @@ set 16mb_stack_size_macos 0000_0000_0000_0000___0000_0000_1
 
 
 
-(arm64 machine instruction opcodes) 
+
+
+
+
+
+
+
+
+
+
+(arm64 conditions for bc branches and ccmp)
+
+set cond_always 0111
+set cond_never 1111
+
+set is_equal 0
+set is_not_equal 1
+set is_negative 001
+set is_nonnegative 101
+set has_overflow_set 011
+set has_overflow_clear 111
+		
+set is_signed_less 1101
+set is_signed_greater 0011
+set is_signed_less_or_equal 1011
+set is_signed_greater_or_equal 0101
+			
+set is_unsigned_less 11
+set is_unsigned_greater 0001
+set is_unsigned_less_or_equal 1001
+set is_unsigned_greater_or_equal 01
+
+
+
+
+(arm64 machine instruction opcodes / arguments) 
 
 set subtract 1 
 set setflags 1
@@ -260,29 +295,6 @@ set a6_arg5 101
 set a6_arg6 011
 set a6_arg7 111
 
-
-
-(conditions for bc branches and ccmp)
-
-set cond_always 0111
-set cond_never 1111
-
-set is_equal 0
-set is_not_equal 1
-set is_negative 001
-set is_nonnegative 101
-set has_overflow_set 011
-set has_overflow_clear 111
-		
-set is_signed_less 1101
-set is_signed_greater 0011
-set is_signed_less_or_equal 1011
-set is_signed_greater_or_equal 0101
-			
-set is_unsigned_less 11
-set is_unsigned_greater 0001
-set is_unsigned_less_or_equal 1001
-set is_unsigned_greater_or_equal 01
 
 
 
