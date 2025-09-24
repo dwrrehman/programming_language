@@ -2,8 +2,9 @@
 (written on 1202509022.214003 by dwrr)
 
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
-file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/msp430g2553.s
+(file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/msp430g2553.s)
 
 
 

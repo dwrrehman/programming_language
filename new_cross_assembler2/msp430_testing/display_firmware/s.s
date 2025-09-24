@@ -2,8 +2,10 @@
 (written on 1202509022.214003 by dwrr)
 
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
-file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/msp430g2553.s
+
+(file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/msp430g2553.s)
 
 
 
@@ -216,6 +218,8 @@ sect start_of_flash
 	mo m_mov  fixed_mode fixed_reg bcsctl1  imm_mode imm_reg 1111_0001   size_byte
 	mo m_mov  fixed_mode fixed_reg bcsctl2  imm_mode imm_reg 0000_0000   size_byte
 	mo m_mov  fixed_mode fixed_reg bcsctl3  imm_mode imm_reg 0010_0100   size_byte
+
+
 
 	mo m_mov  fixed_mode fixed_reg p2dir    imm_mode imm_reg 1111_1111 size_byte
 	mo m_mov  fixed_mode fixed_reg p2out    imm_mode imm_reg 0000_0000 size_byte

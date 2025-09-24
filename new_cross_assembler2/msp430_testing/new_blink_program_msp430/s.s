@@ -112,26 +112,11 @@ sub start_of_stack 0000_001
 
 set pm5ctl0     0000_1100_1000_0000
 set wdtctl 	0011_1010_1000_0000
+set port1_base  0000_0000_0100_0000
 
-set porta_base  0000_0000_0100_0000
-set portb_base  0000_0100_0100_0000
-set portc_base  0000_0010_0100_0000
-set portd_base  0000_0110_0100_0000
-set portj_base  0000_0100_1100_0000
-
-set p1_in 	0000
-set p1_out 	0100
-set p1_dir 	0010
-set p1_ren 	0110
-set p1_sel0 	0101
-set p1_sel1 	0011
-
-set p2_in 	1000
-set p2_out 	1100
-set p2_dir 	1010
-set p2_ren 	1110
-set p2_sel0 	1101
-set p2_sel1 	1011
+set p1in 	0000   add p1in port1_base
+set p1out 	0100   add p1out port1_base
+set p1dir 	0010   add p1dir port1_base
 
 set csctl0      0000_0110_1000_0000
 set csctl1      0100_0110_1000_0000
@@ -153,50 +138,18 @@ sect start_of_sram
 
 	mo m_mov  reg_mode sp 0   imm_mode imm_reg start_of_stack   size_word
 	mo m_mov  fixed_mode fixed_reg wdtctl   imm_mode imm_reg 1111_1011_0101_1010   size_word
-	
-	mo m_mov  fixed_mode fixed_reg frctl0   imm_mode imm_reg 0000_1000_1010_0101   size_word
 
-	mo m_mov  fixed_mode fixed_reg csctl0   imm_mode imm_reg 0000_0000_1010_0101   size_word
-	mo m_mov  fixed_mode fixed_reg csctl1   imm_mode imm_reg 0001_0010_0000_0000   size_word
-	mo m_mov  fixed_mode fixed_reg csctl2   imm_mode imm_reg 1100_1100_1000_0000   size_word
-	mo m_mov  fixed_mode fixed_reg csctl3   imm_mode imm_reg 1000_1000_1000_0000   size_word
-
-
-
-
-
-	
-	set n porta_base add n p1_dir 
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-	set n porta_base add n p1_out
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-
-	set n portb_base add n p1_dir 
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-	set n portb_base add n p1_out
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-
-	set n portc_base add n p1_dir 
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-	set n portc_base add n p1_out
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-
-	set n portd_base add n p1_dir 
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-	set n portd_base add n p1_out
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-
-	set n portj_base add n p1_dir 
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-	set n portj_base add n p1_out
-	mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
+	mo m_mov  fixed_mode fixed_reg p1dir    imm_mode imm_reg 1111_1111 size_byte
+	mo m_mov  fixed_mode fixed_reg p1out    imm_mode imm_reg 0000_0000 size_byte
 
 	mo m_bic  fixed_mode fixed_reg pm5ctl0  literal_mode constant_1 0 size_byte
+
+
 
 	at mainloop 
 		mo m_bis  fixed_mode fixed_reg p1out    imm_mode imm_reg 1000_0000 size_byte
 
-		mo m_mov reg_mode 001 0  imm_mode imm_reg 1111 size_word
+		mo m_mov reg_mode 001 0  imm_mode imm_reg 1 size_word
 	at outter
 		mo m_mov reg_mode 101 0  imm_mode imm_reg 1111_1111_1111_1111  size_word
 		at inner
@@ -207,10 +160,7 @@ sect start_of_sram
 		
 		mo m_bic  fixed_mode fixed_reg p1out    imm_mode imm_reg 1000_0000 size_byte
 
-		set n porta_base add n p1_out
-		mo m_mov  fixed_mode fixed_reg n    imm_mode imm_reg 1111_1111_1111_1111 size_word
-
-		mo m_mov reg_mode 001 0  imm_mode imm_reg 1111 size_word
+		mo m_mov reg_mode 001 0  imm_mode imm_reg 1 size_word
 	at outter
 		mo m_mov reg_mode 101 0  imm_mode imm_reg 1111_1111_1111_1111  size_word
 		at inner
