@@ -201,6 +201,9 @@ sect start_of_flash
 	mo m_mov  fixed_mode fixed_reg bcsctl2  imm_mode imm_reg 0000_0000   size_byte
 	mo m_mov  fixed_mode fixed_reg bcsctl3  imm_mode imm_reg 1010_0100   size_byte
 
+
+
+
 	mo m_mov  fixed_mode fixed_reg p2dir    imm_mode imm_reg 1111_1111   size_byte
 	mo m_mov  fixed_mode fixed_reg p2out    imm_mode imm_reg 0000_0000 size_byte
 	mo m_mov  fixed_mode fixed_reg p2sel    imm_mode imm_reg 0 size_byte

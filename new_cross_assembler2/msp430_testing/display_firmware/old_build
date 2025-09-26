@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# build file for msp430 programming with the assembler! 
+# written on 1202509022.222902 by dwrr.
+
+/Users/dwrr/root/personal/executables/assembler s.s && cp firmware.txt /Users/dwrr/root/projects/led_display/MSP_Flasher/firmware.txt
+cd /Users/dwrr/root/projects/led_display/MSP_Flasher/
+./program_msp430.sh firmware.txt
+rm firmware.txt
+cd -
+
+
+
