@@ -102,6 +102,18 @@ at reti
 	eq 0 0 ra del ra
 	lt 0 0 reti 
 
+
+at m_ret
+	ld ra 0
+	set c0 ra function_begin
+
+	mo m_mov  reg_mode pc 0  incr_mode sp 0 size_word
+
+	function_end 
+	eq 0 0 ra del ra
+	lt 0 0 m_ret
+
+
 at m_nop
 	ld ra 0
 	set c0 ra function_begin
@@ -225,7 +237,7 @@ st overwrite_output true
 eq 0 0 skiproutines
 
 
-at delay
+(at delay
 	ld ra 0
 	set a c0
 	set b c1
@@ -246,7 +258,7 @@ at delay
 	eq 0 0 ra del ra
 	lt 0 0 delay
 
-
+)
 
 at skiproutines del skiproutines
 
@@ -254,14 +266,14 @@ at skiproutines del skiproutines
 sect start_of_flash
 
 	mo m_mov  reg_mode sp 0   imm_mode imm_reg start_of_stack   size_word
-	mo m_mov  fixed_mode fixed_reg wdtctl   imm_mode imm_reg 0000_0001_0101_1010   size_word
+	mo m_mov  fixed_mode fixed_reg wdtctl   imm_mode imm_reg 0011_1000__0101_1010 size_word
 
 	mo m_mov  fixed_mode fixed_reg dcoctl   imm_mode imm_reg 0000_0111   size_byte
-	mo m_mov  fixed_mode fixed_reg bcsctl1  imm_mode imm_reg 0000_0001   size_byte (1111_0001)
+	mo m_mov  fixed_mode fixed_reg bcsctl1  imm_mode imm_reg 1111_0001   size_byte
 	mo m_mov  fixed_mode fixed_reg bcsctl3  imm_mode imm_reg 1010_0100   size_byte
 
-	mo m_mov  fixed_mode fixed_reg ucb0br0    imm_mode imm_reg 1111_1111 size_byte
-	mo m_mov  fixed_mode fixed_reg ucb0br1    imm_mode imm_reg 1111_1111 size_byte
+	mo m_mov  fixed_mode fixed_reg ucb0br0    const2_mode const2_reg 0 size_byte
+	mo m_mov  fixed_mode fixed_reg ucb0br1    const0_mode const0_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg ucb0ctl0   imm_mode imm_reg 1001_0001 size_byte
 	mo m_mov  fixed_mode fixed_reg ucb0ctl1   imm_mode imm_reg 1000_0011 size_byte
 	
@@ -270,49 +282,96 @@ sect start_of_flash
 	mo m_mov  fixed_mode fixed_reg p1dir    const-1_mode const-1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
 
+
+
+
+
 	mo m_mov  fixed_mode fixed_reg p1sel    imm_mode imm_reg 0000_0101 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel2   imm_mode imm_reg 0000_0101 size_byte
-	mo m_bic  fixed_mode fixed_reg ucb0ctl1  const1_mode const1_reg 0 size_byte
-	mo m_bic  fixed_mode fixed_reg ifg2     imm_mode imm_reg 0001_0000 size_byte
-	mo m_bis  fixed_mode fixed_reg ie2      imm_mode imm_reg 0001_0000 size_byte
+	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
+	mo m_bic  fixed_mode fixed_reg ifg2     const8_mode const8_reg 0 size_byte
+	mo m_bis  fixed_mode fixed_reg ie2      const8_mode const8_reg 0 size_byte
 	mo m_bic  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
 
 	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0100_1110 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
 
-	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0100_1110 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
 	
 	at wait
 		mo m_bit  fixed_mode fixed_reg ucb0stat   const1_mode const1_reg 0  size_byte
 		mb condjnz wait del wait
 
 	mo m_bis  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
-	mo m_bis  fixed_mode fixed_reg ucb0ctl1  const1_mode const1_reg 0 size_byte
+	mo m_bis  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel    const0_mode const0_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel2   const0_mode const0_reg 0 size_byte
 
+	 
+
+
 	set data 001
 	mo m_mov  reg_mode data 0    const0_mode const0_reg 0 size_byte
-
-	mo m_mov  fixed_mode fixed_reg wdtctl   imm_mode imm_reg 0011_1000__0101_1010 size_word
 	mo m_bis  fixed_mode fixed_reg ie1     const1_mode const1_reg 0 size_byte
-	mo m_bic  fixed_mode fixed_reg ifg1    const1_mode const1_reg 0 size_byte
-		
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1011_0000_0000  size_word
+	mo m_bic  fixed_mode fixed_reg ifg1    const1_mode const1_reg 0 size_byte		
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1011  size_word
 	m_nop
 	at error    mb condjmp error del error 
 	m_nop
 
+
 at ucb0tx_interrupt_routine
-	mo m_bic  fixed_mode fixed_reg ifg2    imm_mode imm_reg 0001_0000 size_byte
+	mo m_bic  fixed_mode fixed_reg ifg2    const8_mode const8_reg 0 size_byte
 	mo m_xor  fixed_mode fixed_reg p2out    const2_mode const2_reg 0 size_byte
-	mo m_bic  index_mode sp 0     imm_mode imm_reg 0000_1111_0000_0000 size_word
+	mo m_bic  index_mode sp 0     imm_mode imm_reg 0000_1111 size_word
 	reti m_nop
 
 at wdt_interrupt_routine
 	mo m_xor  fixed_mode fixed_reg p2out    const4_mode const4_reg 0 size_byte
-	mo m_xor  reg_mode data 0    imm_mode imm_reg 1111_1111 size_byte
+	mo m_xor  reg_mode data 0    const-1_mode const-1_reg 0 size_byte
+
+
+
+
+
+	mo m_mov  fixed_mode fixed_reg p1sel    imm_mode imm_reg 0000_0101 size_byte
+	mo m_mov  fixed_mode fixed_reg p1sel2   imm_mode imm_reg 0000_0101 size_byte
+	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
+	mo m_bic  fixed_mode fixed_reg ifg2     const8_mode const8_reg 0 size_byte
+	mo m_bis  fixed_mode fixed_reg ie2      const8_mode const8_reg 0 size_byte
+	mo m_bic  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0100_1110 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0001_0100 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   reg_mode data 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   reg_mode data 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+	
+	at wait
+		mo m_bit  fixed_mode fixed_reg ucb0stat   const1_mode const1_reg 0  size_byte
+		mb condjnz wait del wait
+
+	mo m_bis  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
+	mo m_bis  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
+	mo m_mov  fixed_mode fixed_reg p1sel    const0_mode const0_reg 0 size_byte
+	mo m_mov  fixed_mode fixed_reg p1sel2   const0_mode const0_reg 0 size_byte
+
+
+
+
 	mo m_bic  fixed_mode fixed_reg ifg1     const1_mode const1_reg 0 size_byte
 	reti m_nop
 

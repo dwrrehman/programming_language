@@ -169,7 +169,7 @@ enum isa {
 	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
 	rr, ri, rs, rb, ru, rj,
-	mo, mb,
+	mo, mb, ms,
 	nop, svc, mov, bfm,
 	adc, addx, addi, addr, adr,
 	shv, clz, rev, jmp, bc, br,
@@ -187,7 +187,7 @@ static const char* operations[isa_count] = {
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi", 
 	"rr", "ri", "rs", "rb", "ru", "rj", 
-	"mo", "mb", 
+	"mo", "mb", "ms",
 	"nop", "svc", "mov", "bfm", 
 	"adc", "addx", "addi", "addr", "adr", 
 	"shv", "clz", "rev", "jmp", "bc", "br", 
@@ -204,7 +204,7 @@ static const nat arity[isa_count] = {
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
 	6, 5, 5, 5, 3, 3,
-	8, 2,
+	8, 2, 5,
 	0, 0, 4, 7, 
 	6, 7, 6, 7, 3,
 	5, 4, 4, 2, 2, 3, 
@@ -870,6 +870,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(offset << 0LLU);
 			insert_u16((u16) word);
 
+
 		} else if (op == mo) {
 			if (a0 >= (1LLU <<  4LLU)) print_error("mo: invalid 4-bit op code", a0, pc, 1);
 			if (a1 >= (1LLU <<  1LLU)) print_error("mo: invalid 1-bit destination mode", a1, pc, 2);
@@ -887,10 +888,23 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a4 << 4LLU) |
 				(a2 << 0LLU) ;
 			insert_u16((u16) word);
-			if ((a4 == 1 and (a5 != 2 and a5 != 3))
-				or (a4 == 3 and not a5)) insert_u16((u16) a6);
+			if ((a4 == 1 and a5 != 3) or (a4 == 3 and not a5)) insert_u16((u16) a6);
 			if (a1 == 1) insert_u16((u16) a3);
 
+		} else if (op == ms) {
+			if (a0 >= (1LLU <<  9LLU)) print_error("ms: invalid 9-bit op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  2LLU)) print_error("ms: invalid 2-bit destination mode", a1, pc, 2);
+			if (a2 >= (1LLU <<  4LLU)) print_error("ms: invalid 4-bit destination register", a2, pc, 3);
+			if (a3 >= (1LLU << 16LLU)) print_error("ms: invalid 16-bit destination immediate", a3, pc, 4);
+			if (a4 >= (1LLU <<  1LLU)) print_error("mo: invalid 1-bit is-8-bit flag", a4, pc, 5);
+			nat word = 
+				(a0 << 7LLU) |
+				(a4 << 6LLU) |
+				(a1 << 4LLU) |
+				(a2 << 0LLU) ;
+			insert_u16((u16) word);
+			if ((a1 == 1 and a2 != 3) or (a1 == 3 and not a2)) insert_u16((u16) a3);
+		
 		} else if (op == clz) { puts("clz is unimplemented currently, lol"); abort(); }
 		else if (op == rev) { puts("rev is unimplemented currently, lol"); abort(); }
 		else if (op == extr) { puts("extr is unimplemented currently, lol"); abort(); }
@@ -1372,11 +1386,7 @@ process_file:;
 		goto push_argument;
 
 	undefined_var:
-		if (	//op == set and arg_count == 2 or
-			//op == st  and arg_count == 2 or    //TODO: remove this?... its not neccesary lol....
-			(op > eoi and op < isa_count)
-		) goto define_name;
-
+		if (op > eoi and op < isa_count) goto define_name;
 		parse_error(
 			"undefined variable", 
 			"no variable defined with this name", 
