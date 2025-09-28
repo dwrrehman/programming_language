@@ -187,7 +187,7 @@ st overwrite_output true
 
 sect start_of_memory
 	mo m_mov  reg_mode sp 0   imm_mode imm_reg start_of_stack   size_word
-	mo m_mov  fixed_mode fixed_reg wdtctl    imm_mode imm_reg 0011_1010_0101_1010 size_word
+	mo m_mov  fixed_mode fixed_reg wdtctl    imm_mode imm_reg 1011_1010_0101_1010 size_word
 	mo m_mov  fixed_mode fixed_reg frctl0    imm_mode imm_reg 0000_1000_1010_0101 size_word
 	mo m_mov  fixed_mode fixed_reg csctl1    imm_mode imm_reg 1101_1100 size_byte
 	mo m_mov  fixed_mode fixed_reg ucb0br0   const2_mode const2_reg 0 size_byte
@@ -203,21 +203,80 @@ sect start_of_memory
 
 	mo m_mov  fixed_mode fixed_reg p1sel0   imm_mode imm_reg 0110_0000 size_byte
 	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
+	mo m_bic  fixed_mode fixed_reg ucb0ifg  const2_mode const2_reg 0 size_byte
+	mo m_bis  fixed_mode fixed_reg ucb0ie   const2_mode const2_reg 0 size_byte
+	mo m_bic  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0100_1110 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
+
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word	
+
+	at wait
+		mo m_bit  fixed_mode fixed_reg ucb0stat   const1_mode const1_reg 0  size_byte
+		mb condjnz wait del wait
+
+	mo m_bis  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
+	mo m_bis  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
+	mo m_mov  fixed_mode fixed_reg p1sel0    const0_mode const0_reg 0 size_byte
+	set data0 0001
+	set data1 1001
+	mo m_mov  reg_mode data0 0    imm_mode imm_reg 0000_0000 size_word
+	mo m_mov  reg_mode data1 0    imm_mode imm_reg 0000_0000 size_word
+
+	(   no LEDs will turn on with this configuration
+		upon toggling bit0 of data0. (aka, GPA0)
+
+	 mo m_mov  reg_mode data0 0    imm_mode imm_reg 0011_0101 size_word
+	 mo m_mov  reg_mode data1 0    imm_mode imm_reg 1001_1001 size_word
+
+	)
+
+
+
+	mo m_bis  fixed_mode fixed_reg sfrie  const1_mode const1_reg 0 size_byte
+	mo m_bic  fixed_mode fixed_reg sfrifg  const1_mode const1_reg 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
+	at error mb condjmp error del error 
+	m_nop
+
+at ucb0tx_interrupt_routine
+	mo m_bic  fixed_mode fixed_reg ucb0ifg    const2_mode const2_reg 0 size_byte
+	mo m_bic  index_mode sp 0     imm_mode imm_reg 0000_1111 size_word
+	reti m_nop
+
+
+at wdt_interrupt_routine
+
+	mo m_xor  reg_mode data0 0  imm_mode imm_reg 0000_0001   size_byte
+	(mo m_xor  reg_mode data1 0  imm_mode imm_reg 0000_0000   size_byte)
+
+
+	
+	mo m_mov  fixed_mode fixed_reg p1sel0   imm_mode imm_reg 0110_0000 size_byte
+	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
 	mo m_bic  fixed_mode fixed_reg ucb0ifg     const2_mode const2_reg 0 size_byte
 	mo m_bis  fixed_mode fixed_reg ucb0ie      const2_mode const2_reg 0 size_byte
 	mo m_bic  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
 
 	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0100_1110 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
 
-	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   imm_mode imm_reg 0001_0100 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
 
-	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   reg_mode data0 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
 
-	mo m_mov  fixed_mode fixed_reg ucb0txbuf   const0_mode const0_reg 0 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111  size_word
+	mo m_mov  fixed_mode fixed_reg ucb0txbuf   reg_mode data1 0 size_byte
+	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
 	
 	at wait
 		mo m_bit  fixed_mode fixed_reg ucb0stat   const1_mode const1_reg 0  size_byte
@@ -228,21 +287,6 @@ sect start_of_memory
 	mo m_mov  fixed_mode fixed_reg p1sel0    const0_mode const0_reg 0 size_byte
 
 
-	mo m_bis  fixed_mode fixed_reg sfrie  const1_mode const1_reg 0 size_byte
-	mo m_bic  fixed_mode fixed_reg sfrifg  const1_mode const1_reg 0 size_byte
-	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1111_0000_0000  size_word
-	at error mb condjmp error del error 
-	m_nop
-
-
-at ucb0tx_interrupt_routine
-	mo m_bic  fixed_mode fixed_reg ucb0ifg    const8_mode const8_reg 0 size_byte
-	mo m_xor  fixed_mode fixed_reg p2out    const2_mode const2_reg 0 size_byte
-	mo m_bic  index_mode sp 0     imm_mode imm_reg 0000_1111 size_word
-	reti m_nop
-
-at wdt_interrupt_routine
-	(mo m_xor  fixed_mode fixed_reg p1out   const1_mode const1_reg 0 size_byte)
 	mo m_bic  fixed_mode fixed_reg sfrifg  const1_mode const1_reg 0 size_byte
 	reti m_nop
 
@@ -274,6 +318,7 @@ going well so far, getting the low power interrupt driven blinkprogram working n
 
 
 
+	(mo m_xor  fixed_mode fixed_reg p2out   const1_mode const1_reg 0 size_byte)
 
 
 
