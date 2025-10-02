@@ -1,380 +1,65 @@
-(
-	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
-	trying to get this even lower.. 
-
-	1202509077.141019   
-	YAYY GOT THIS EVEN LOWER   down to  130uA now!!! in P1.7,    and then 210 in P1.4!
-
-
-(set c0 data set c1 11 li
-rs r_store r_sw address data clock_ref_control)
-
-
-
-)
-
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
 
 str "firmware.uf2" set_output_name
 
-(program register allocations)
-
-
-set data 	001
-set address 	101
-set temp	011
-set other_temp  111
-set copy	0001
-
-
-eq 0 0 skiproutines
-
-at delay
-	ld ra 0
-	set c0 ra
-	function_begin
-	
-	set i other_temp
-	set c0 i set c1 11 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i
-
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 delay
-
-
-
-
-
-at delay_long
-	ld ra 0
-	set c0 ra
-	function_begin
-	
-	set i other_temp
-	set c0 i set c1 1111_1111__1111_1111_1111 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i
-
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 delay_long
-
-
-
-
-at display_value
-	ld ra 0
-	set given_value c0
-	set k c1
-	set c0 ra
-	function_begin
-
-	rr r_reg r_add copy given_value 0 0 
-	set value copy
-
-	mul k 0001
-	eq k 0 skip 
-		ri r_imm r_sd value value k 
-	at skip del skip
-
-	ri r_imm r_and value value 1111_1111
-	set c0 address set c1 sio_base li
-	rs r_store r_sw address value sio_gpio_out
-
-
-	delay
-
-
-
-	del value
-	del given_value del k
-	function_end
-	eq 0 0 ra del ra
-	lt 0 0 display_value
-
-at skiproutines del skiproutines
-
+set data 	01
+set address 	001
+set temp	101
 
 rp2350
 sect flash_start
 start_rp2350_binary
 
 set c0 address set c1 reset_base li
-rs r_store r_sw address 0 0
-
-
-(1202509147.180328
-YAYYYY I GOT IT WORKINGGGG THE RESETS WERE THE PROBLEM YAYYYYYY    I GOT SPI WORKING YAYYYYYY
-)
-
-set c0 address set c1 clocks_base li
-
-ri r_imm r_add data 0 0000_0000_0001
-rs r_store r_sw address data clock_peri_control
-
-set c0 data set c1 0000_0000_0000_0000___1111_1111 li
-rs r_store r_sw address data clock_ref_div
-
-set c0 data set c1 0000_0000_0000_0000___1111_1111_11 li
-rs r_store r_sw address data clock_sys_div
-
-set c0 address set c1 io_bank0_base li
-
-set c0 data set c1 101 li
-
-rs r_store r_sw address data io_gpio0_ctrl
-rs r_store r_sw address data io_gpio1_ctrl
-rs r_store r_sw address data io_gpio2_ctrl
-rs r_store r_sw address data io_gpio3_ctrl
-rs r_store r_sw address data io_gpio4_ctrl
-rs r_store r_sw address data io_gpio5_ctrl
-rs r_store r_sw address data io_gpio6_ctrl
-rs r_store r_sw address data io_gpio7_ctrl
-
-rs r_store r_sw address data io_gpio23_ctrl
-
-set c0 data set c1 1 li
-rs r_store r_sw address data io_gpio16_ctrl
-rs r_store r_sw address data io_gpio17_ctrl
-rs r_store r_sw address data io_gpio18_ctrl
-rs r_store r_sw address data io_gpio19_ctrl
-
-set c0 address set c1 pads_bank0_base li
-
-(set c0 data set c1 00_00_00_000 li)
-
-rs r_store r_sw address 0 pads_gpio0
-rs r_store r_sw address 0 pads_gpio1
-rs r_store r_sw address 0 pads_gpio2
-rs r_store r_sw address 0 pads_gpio3
-rs r_store r_sw address 0 pads_gpio4
-rs r_store r_sw address 0 pads_gpio5
-rs r_store r_sw address 0 pads_gpio6
-rs r_store r_sw address 0 pads_gpio7
-
-rs r_store r_sw address 0 pads_gpio23
-
-set c0 data set c1 01 li
-rs r_store r_sw address data pads_gpio16
-rs r_store r_sw address data pads_gpio17
-rs r_store r_sw address data pads_gpio18
-rs r_store r_sw address data pads_gpio19
-
-set c0 address set c1 sio_base li
-set c0 data set c1 1111_1111_0000_0000___0000_0001_0000_0000 li
-rs r_store r_sw address data sio_gpio_oe
-rs r_store r_sw address 0 sio_gpio_out
-
-
-
-(
-
-set c0 address set c1 reset_base
 set c0 data set c1 1111_1101_1011_1111___1111_1111_1111_1111 li
 rs r_store r_sw address data 0
 
-set c0 address set c1 reset_base
-set c0 data set c1 1111_1101_1011_1111___1100_1111_1111_1111 li
-rs r_store r_sw address data 0
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio0_ctrl
+set c0 address set c1 pads_bank0_base li
+rs r_store r_sw address 0 pads_gpio0
 
+set c0 address set c1 sio_base li
+set c0 data set c1 1 li
+rs r_store r_sw address data sio_gpio_oe
+set c0 data set c1 1 li
+rs r_store r_sw address data sio_gpio_out
 
-resets		   1111_1100_1001_1111___1011_1110_1011_0000)
+(set j 0001
+set c0 j set c1 0000_1 li
+at loop)
 
-
-
-
-
-
-
-set c0 address set c1 spi0_base li
-
-set c0 data set c1 1110_0000_0000_0000 li
-rs r_store r_sw address data spi_control0
-
-set c0 data set c1 0000_001 li
-rs r_store r_sw address data spi_prescale
-
-
-
-
-
-set c0 data set c1 1010_1101 li
-rs r_store r_sw address data spi_data
-set c0 data set c1 1010_1101 li
-rs r_store r_sw address data spi_data
+	set c0 address set c1 sio_base li
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
 	
-set c0 data set c1 01 li
-rs r_store r_sw address data spi_control1
-
-set c0 data set c1 1010_1101 li
-rs r_store r_sw address data spi_data
-set c0 data set c1 1010_1101 li
-rs r_store r_sw address data spi_data
-
-
-
-
-
-
-at loop
-
-set random 00011
-set c0 random set c1 1010_1010 li
-
-set c0 address set c1 reset_base li
-ri r_load r_lw temp address 0
-
-set c0 random set c1 0 display_value
-set c0 temp set c1 00 display_value set c0 random set c1 0 display_value
-set c0 temp set c1 10 display_value set c0 random set c1 0 display_value
-set c0 temp set c1 01 display_value set c0 random set c1 0 display_value
-set c0 temp set c1 11 display_value set c0 random set c1 0 display_value
-set c0 random set c1 0 display_value
-
-rj r_jal 0 loop del loop
-
-
-
-
-
-
-
-
-
-
-
-eoi
-
-
-
-
-
-
-
-
-
-1202509147.164824
-
-LEDS:  RESET_DONE REGISTER VALUE
-
-0000_0011   0110_0000      0100_0011   0100_0000
-
-
-LEDS:  RESETS   REGISTER VALUE
-
-1111_1100    1001_1111    1011_1110    1011_0000
-
-
-
-
-
-
-
-
-
-
-0000_0011   0110_0000      0100_0011   0100_0000
-
-BYTE0:
-[-]  [-] [-] [-]  [-] [-] [IO_BANK0] [IO_QSPI]
-
-BYTE1:
-[-] [PADS_BANK0] [PADS_QSPI] [-]   [-] [-] [-] [-]
-
-BYTE2:
-[-] [SHA256] [-] [-] [-] [-] [TBMAN] [TIMER0] 
-
-BYTE3:
-[-] [TRNG] [-] [-]  [-]   -  -  -  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-RESETS:
-
-1111_1100    1001_1111    1011_1110    1011_0000
-
-
-BYTE0:
-[-]  [-] [-] [-]  [-] [-] [IO_BANK0] [IO_QSPI]
-
-BYTE1:
-[-] [PADS_BANK0] [PADS_QSPI] [-]   [-] [-] [-] [-]
-
-BYTE2:
-[-] [SHA256] [-] [-] [-] [-] [-] [TIMER0] 
-
-BYTE3:
-[-] [TRNG] [-] [-]  [USBCTRL]   Resv.   Resv.   Resv.
-
-
-
-
-
-
-
-
-0000_0011   0110_0000      0100_0011   0100_0000
-
-BYTE0:
-[ADC]  [BUSCTRL] [DMA] [HSTX]  [I2C0] [I2C1] [IO_BANK0] [IO_QSPI]
-
-BYTE1:
-[JTAG] [PADS_BANK0] [PADS_QSPI] [PIO0]   [PIO1] [PIO2] [PLL_SYS] [PLL_USB]
-
-BYTE2:
-[PWM] [SHA256] [SPI0] [SPI1] [SYSCFG] [SYSINFO] [TBMAN] [TIMER0] 
-
-BYTE3:
-[TIMER1] [TRNG] [UART0] [UART1]  [USBCTRL]   Resv.   Resv.   Resv.
-
-
-
-
-
-
-
-
-
-
-
-
-LEDS:
-1111_1100    1001_1111    1011_1110    1011_0000
-
-
-
-
-RESET BASE:
-1111_1100__1001_1111__1011_1110__1011_0000
-
-
-
-
-
-
-
-
-(set c0 address set c1 powman_base li
+	(set i temp
+	set c0 i set c1 0000_0000_0000_0000___0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i)
+
+
+	(set c0 address set c1 sio_base li
+	rs r_store r_sw address 0 sio_gpio_out
+
+	set i temp
+	set c0 i set c1 0000_0000_0000_0000___0000_0001 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i)
+
+	(ri r_imm r_add j j 1111_1111_1111
+	rb r_branch r_bne j 0 loop
+	del loop del j)
+
+set c0 address set c1 powman_base li
 set n 0000_1010_0000_0101 add n powman_password
 set c0 data set c1 n li
 rs r_store r_sw address data vreg_control
@@ -382,7 +67,28 @@ set n 0000_1111_0000_0000 add n powman_password
 set c0 data set c1 n li
 rs r_store r_sw address data powman_state
 
-processor_sleep)
+processor_sleep
+
+
+eoi
+
+
+
+1202509302.043240
+
+a simple blink program, modified to hopefully be more low power! (soon)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -395,57 +101,11 @@ processor_sleep)
 
 
 (
-	set i temp
-	set c0 i set c1 01 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i
+	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
+	trying to get this even lower.. 
 
-
-
-	set i temp
-	set c0 i set c1 01 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i
-
-
-
-at wait
-
-	set c0 address set c1 sio_base li
-
-	set c0 data set c1 1 li
-	rs r_store r_sw address data sio_gpio_out
-	
-	set i temp
-	set c0 i set c1 1 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i
-	
-
-	rs r_store r_sw address 0 sio_gpio_out
-	
-	set i temp
-	set c0 i set c1 1 li
-	at l
-		ri r_imm r_add i i 1111_1111_1111
-		rb r_branch r_bne i 0 l
-	del l del i
-
-		
-	set c0 address set c1 spi0_base li
-	ri r_load r_lw data address spi0_status
-	ri r_imm r_and data data 0000_1
-
-
-	rb r_branch r_bne data 0 wait
-
-	del wait
+	1202509077.141019   
+	YAYY GOT THIS EVEN LOWER   down to  130uA now!!! in P1.7,    and then 210 in P1.4!
 
 )
 
@@ -458,8 +118,60 @@ at wait
 
 
 
+(set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+rs r_store r_sw address data io_gpio18_ctrl
+rs r_store r_sw address data io_gpio19_ctrl)
 
-((ROSC = 11MHz)   11,000,000  / (65535 * 127) = 1.3216475659 Hz     clock rate)
+
+
+(set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio16
+rs r_store r_sw address data pads_gpio17
+rs r_store r_sw address data pads_gpio18
+rs r_store r_sw address data pads_gpio19)
+
+
+
+(rs r_store r_sw address data io_gpio23_ctrl)
+(set c0 data set c1 00_00_00_000 li)
+(rs r_store r_sw address 0 pads_gpio23)
+
+
+
+(set c0 address set c1 spi0_base li
+	
+set c0 data set c1 1010_1101_1011_0011 li
+rs r_store r_sw address data spi0_data
+	
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1)
+
+
+
+
+
+
+
+
+set c0 address set c1 clocks_base li
+(set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control)
+
+(set c0 data set c1 0000_0000_0000_0000___1111_1110 li
+rs r_store r_sw address data clock_ref_div)
+
+(set c0 data set c1 0000_0000_0001 li
+rs r_store r_sw address data clock_peri_control)
+
+
 
 
 

@@ -33,6 +33,13 @@ set m_bis 	1011
 set m_xor 	0111
 set m_and 	1111
 
+set m_rrc       0000_0100_0
+set m_rra       0100_0100_0
+set m_push      0010_0100_0
+set m_call      1010_0100_0   (must be size_word)
+set m_swap      1000_0100_0   (must be size_word)
+set m_sxt       1100_0100_0   (must be size_word)
+
 zero x set condjnz x
 incr x set condjz x
 incr x set condjnc x
@@ -77,6 +84,26 @@ set fixed_mode index_mode
 del x
 
 eq 0 0 skiproutines
+
+at delay
+	ld ra 0
+	set a c0
+	set b c1
+	set c0 ra function_begin
+
+	mo m_mov reg_mode a 0  imm_mode imm_reg 1111 size_word
+	at outter
+		mo m_mov reg_mode b 0  imm_mode imm_reg 1111_1111_1111_1111  size_word
+		at inner
+			mo m_sub reg_mode b 0 const1_mode const1_reg 0  size_word
+			mb condjnz inner del inner
+		mo m_sub reg_mode a 0 const1_mode const1_reg 0 size_word
+		mb condjnz outter del outter
+
+	del a del b 
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 delay
 
 at reti
 	ld ra 0
@@ -185,7 +212,11 @@ set target msp430_arch
 st output_format ti_txt_executable
 st overwrite_output true
 
-sect start_of_memory
+
+set firmware_location start_of_memory       (instead of start_of_fram)
+
+
+sect firmware_location
 	mo m_mov  reg_mode sp 0   imm_mode imm_reg start_of_stack   size_word
 	mo m_mov  fixed_mode fixed_reg wdtctl    imm_mode imm_reg 1011_1010_0101_1010 size_word
 	mo m_mov  fixed_mode fixed_reg frctl0    imm_mode imm_reg 0000_1000_1010_0101 size_word
@@ -196,10 +227,23 @@ sect start_of_memory
 	mo m_mov  fixed_mode fixed_reg p3dir    const-1_mode const-1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p3out    const0_mode const0_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p2dir    const-1_mode const-1_reg 0 size_byte
-	mo m_mov  fixed_mode fixed_reg p2out    const0_mode const0_reg 0 size_byte
+	mo m_mov  fixed_mode fixed_reg p2out    const1_mode const1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1dir    const-1_mode const-1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1out    const0_mode const0_reg 0 size_byte
 	mo m_bic  fixed_mode fixed_reg pm5ctl0  const1_mode const1_reg 0 size_byte
+
+	mo m_bis  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
+
+	set a 101 set b 011
+	set c0 a set c1 b delay	
+	mo m_bis  fixed_mode fixed_reg p2out    const1_mode const1_reg 0 size_byte
+	set c0 a set c1 b delay
+	mo m_bic  fixed_mode fixed_reg p2out    const1_mode const1_reg 0 size_byte
+	set c0 a set c1 b delay	
+	mo m_bis  fixed_mode fixed_reg p2out    const1_mode const1_reg 0 size_byte
+	set c0 a set c1 b delay	
+	del a del b
+
 
 	mo m_mov  fixed_mode fixed_reg p1sel0   imm_mode imm_reg 0110_0000 size_byte
 	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
@@ -226,20 +270,12 @@ sect start_of_memory
 	mo m_bis  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
 	mo m_bis  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel0    const0_mode const0_reg 0 size_byte
+
 	set data0 0001
 	set data1 1001
-	mo m_mov  reg_mode data0 0    imm_mode imm_reg 0000_0000 size_word
-	mo m_mov  reg_mode data1 0    imm_mode imm_reg 0000_0000 size_word
 
-	(   no LEDs will turn on with this configuration
-		upon toggling bit0 of data0. (aka, GPA0)
-
-	 mo m_mov  reg_mode data0 0    imm_mode imm_reg 0011_0101 size_word
-	 mo m_mov  reg_mode data1 0    imm_mode imm_reg 1001_1001 size_word
-
-	)
-
-
+	mo m_mov  reg_mode data0 0    imm_mode imm_reg 1010_1100 size_word
+	mo m_mov  reg_mode data1 0    imm_mode imm_reg 1001_1001 size_word 
 
 	mo m_bis  fixed_mode fixed_reg sfrie  const1_mode const1_reg 0 size_byte
 	mo m_bic  fixed_mode fixed_reg sfrifg  const1_mode const1_reg 0 size_byte
@@ -255,10 +291,10 @@ at ucb0tx_interrupt_routine
 
 at wdt_interrupt_routine
 
-	mo m_xor  reg_mode data0 0  imm_mode imm_reg 0000_0001   size_byte
-	(mo m_xor  reg_mode data1 0  imm_mode imm_reg 0000_0000   size_byte)
+	mo m_bis  reg_mode data0 0  imm_mode imm_reg 0000_0001   size_byte
+	mo m_xor  reg_mode data0 0  imm_mode imm_reg 1000_0000   size_byte
 
-
+	(ms   m_rrc  reg_mode  data0  0  size_byte)
 	
 	mo m_mov  fixed_mode fixed_reg p1sel0   imm_mode imm_reg 0110_0000 size_byte
 	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
@@ -286,23 +322,22 @@ at wdt_interrupt_routine
 	mo m_bis  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel0    const0_mode const0_reg 0 size_byte
 
-
 	mo m_bic  fixed_mode fixed_reg sfrifg  const1_mode const1_reg 0 size_byte
 	reti m_nop
 
 
 sect ucb0tx_interrupt_vector
-	set address start_of_memory 
+	set address firmware_location 
 	add address ucb0tx_interrupt_routine
 	emit 01 address del address
 
 sect wdt_interrupt_vector
-	set address start_of_memory 
+	set address firmware_location 
 	add address wdt_interrupt_routine
 	emit 01 address del address
 
 sect reset_vector
-	emit 01 start_of_memory
+	emit 01 firmware_location
 
 
 eoi
@@ -342,6 +377,84 @@ just a simple blink program to test if everythings working!
 we are going to copy the program into RAM on boot, and then run from SRAM first
 
 1202509022.221445
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(mo m_mov  reg_mode data0 0    imm_mode imm_reg 1000_0000 size_word
+	mo m_mov  reg_mode data1 0    imm_mode imm_reg 0000_0000 size_word)
+
+	(   no LEDs will turn on with this configuration
+		upon toggling bit0 of data0. (aka, GPA0)
+
+	 mo m_mov  reg_mode data0 0    imm_mode imm_reg 0011_0101 size_word
+	 mo m_mov  reg_mode data1 0    imm_mode imm_reg 1001_1001 size_word
+
+	)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

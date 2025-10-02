@@ -1,23 +1,11 @@
-(
-	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
-	trying to get this even lower.. 
-
-	1202509077.141019   
-	YAYY GOT THIS EVEN LOWER   down to  130uA now!!! in P1.7,    and then 210 in P1.4!
-
-)
-
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
 
 str "firmware.uf2" set_output_name
 
-(program register allocations)
-
-set led_state 	1
 set data 	01
-set ram 	11
 set address 	001
 set temp	101
 
@@ -26,114 +14,50 @@ sect flash_start
 start_rp2350_binary
 
 set c0 address set c1 reset_base li
-set c0 data set c1 1111_1101_1011_1111___1100_1111_1111_1111 li
+set c0 data set c1 1111_1101_1011_1111___1111_1111_1111_1111 li
 rs r_store r_sw address data 0
 
-
-set c0 address set c1 clocks_base li
-
-set c0 data set c1 11 li
-rs r_store r_sw address data clock_ref_control
-
-set c0 data set c1 0000_0000_0000_0000___1111_1110 li
-rs r_store r_sw address data clock_ref_div
-
-set c0 data set c1 0000_0000_0001 li
-rs r_store r_sw address data clock_peri_control
-
-
-
 set c0 address set c1 io_bank0_base li
-
 set c0 data set c1 101 li
 rs r_store r_sw address data io_gpio0_ctrl
-rs r_store r_sw address data io_gpio23_ctrl
-
-set c0 data set c1 1 li
-rs r_store r_sw address data io_gpio16_ctrl
-rs r_store r_sw address data io_gpio17_ctrl
-rs r_store r_sw address data io_gpio18_ctrl
-rs r_store r_sw address data io_gpio19_ctrl
-
-
-
 set c0 address set c1 pads_bank0_base li
-
-(set c0 data set c1 00_00_00_000 li)
 rs r_store r_sw address 0 pads_gpio0
-rs r_store r_sw address 0 pads_gpio23
-
-set c0 data set c1 01 li
-rs r_store r_sw address data pads_gpio16
-rs r_store r_sw address data pads_gpio17
-rs r_store r_sw address data pads_gpio18
-rs r_store r_sw address data pads_gpio19
-
-
-
 
 set c0 address set c1 sio_base li
-set c0 data set c1 1000_0000_0000_0000___0000_0001_0000_0000 li
+set c0 data set c1 1 li
 rs r_store r_sw address data sio_gpio_oe
-rs r_store r_sw address 0 sio_gpio_out
+set c0 data set c1 1 li
+rs r_store r_sw address data sio_gpio_out
 
+(set j 0001
+set c0 j set c1 0000_1 li
+at loop)
 
-
-set c0 address set c1 spi0_base li
-	
-set c0 data set c1 1010_1101_1011_0011 li
-rs r_store r_sw address data spi0_data
-	
-set c0 data set c1 1111_0000_1111_1111 li
-rs r_store r_sw address data spi0_control0
-	
-set c0 data set c1 01 li
-rs r_store r_sw address data spi0_prescale
-	
-set c0 data set c1 01 li
-rs r_store r_sw address data spi0_control1
-
-
-at loop 
 	set c0 address set c1 sio_base li
-
-	at times
-	
 	set c0 data set c1 1 li
 	rs r_store r_sw address data sio_gpio_out
 	
-	set i temp
-	set c0 i set c1 0000_0001 li
+	(set i temp
+	set c0 i set c1 0000_0000_0000_0000___0000_0001 li
 	at l
 		ri r_imm r_add i i 1111_1111_1111
 		rb r_branch r_bne i 0 l
-	del l del i
-	
+	del l del i)
+
+
+	(set c0 address set c1 sio_base li
 	rs r_store r_sw address 0 sio_gpio_out
-	
+
 	set i temp
-	set c0 i set c1 0000_0001 li
+	set c0 i set c1 0000_0000_0000_0000___0000_0001 li
 	at l
 		ri r_imm r_add i i 1111_1111_1111
 		rb r_branch r_bne i 0 l
-	del l del i
-		
+	del l del i)
 
-
-rj r_jal 0 times
-
-
-
-	
-
-
-
-	rj r_jal 0 loop 
-	del loop
-
-
-
-
+	(ri r_imm r_add j j 1111_1111_1111
+	rb r_branch r_bne j 0 loop
+	del loop del j)
 
 set c0 address set c1 powman_base li
 set n 0000_1010_0000_0101 add n powman_password
@@ -146,11 +70,13 @@ rs r_store r_sw address data powman_state
 processor_sleep
 
 
-
 eoi
 
 
 
+1202509302.043240
+
+a simple blink program, modified to hopefully be more low power! (soon)
 
 
 
@@ -172,6 +98,78 @@ eoi
 
 
 
+
+
+(
+	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
+	trying to get this even lower.. 
+
+	1202509077.141019   
+	YAYY GOT THIS EVEN LOWER   down to  130uA now!!! in P1.7,    and then 210 in P1.4!
+
+)
+
+
+
+
+
+
+
+
+
+
+(set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+rs r_store r_sw address data io_gpio18_ctrl
+rs r_store r_sw address data io_gpio19_ctrl)
+
+
+
+(set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio16
+rs r_store r_sw address data pads_gpio17
+rs r_store r_sw address data pads_gpio18
+rs r_store r_sw address data pads_gpio19)
+
+
+
+(rs r_store r_sw address data io_gpio23_ctrl)
+(set c0 data set c1 00_00_00_000 li)
+(rs r_store r_sw address 0 pads_gpio23)
+
+
+
+(set c0 address set c1 spi0_base li
+	
+set c0 data set c1 1010_1101_1011_0011 li
+rs r_store r_sw address data spi0_data
+	
+set c0 data set c1 1111_0000_1111_1111 li
+rs r_store r_sw address data spi0_control0
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_prescale
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi0_control1)
+
+
+
+
+
+
+
+
+set c0 address set c1 clocks_base li
+(set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control)
+
+(set c0 data set c1 0000_0000_0000_0000___1111_1110 li
+rs r_store r_sw address data clock_ref_div)
+
+(set c0 data set c1 0000_0000_0001 li
+rs r_store r_sw address data clock_peri_control)
 
 
 
