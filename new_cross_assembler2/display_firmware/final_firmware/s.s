@@ -73,6 +73,9 @@ at chip5_columns     (there is no chip 5! this marks the end of chip4.)
 
 
 
+
+
+
 set global_column_index 	next incr next
 set link_register 		1
 
@@ -82,6 +85,7 @@ at chip_function
 		param0	. pointer to beginning of the array of columns/pin-indexes 	
 		param1	. pointer to the end of the columns/pins array.	
 		param2	. chipselect sio_out value when selected. 
+
 			
 
 	(0.1. OR the given chipselect-on bitarray  with    
@@ -92,38 +96,69 @@ at chip_function
 	(which keeps the RESET line still 1, so that they are not reset!)
 
 
+
 	(1. loop over column pin array that was given. this is the top of the loop) 
 
-	(2. construct a 16-bit    one-hot-encoded   bit-array  
+
+
+	(2. construct a 16-bit    one-hot-encoded   bit-array      using  SLL
 		such as    0001_0000_0000_0000
 		)
 		however, if the column pin index   value is actaully  255, 
 			then simply give all zeros instead. no active one bit.
 
-	(3. OR in the row data for this chip, and this global_column_index)
-		(we can skip this part for now though...)
 
+
+	(3. 	do a BITWISE-AND MASK of the row data for the chip, against the chip's row-mask
+			which will look like something like:   0101_1101_0011_1001   idk
+
+		...and then OR in this masked version row data for 
+			this chip into the one hot encoding., 
+
+			(specifically, i meant the row data for this chip and 
+				this global_column_index, rather)
+
+
+		(...we can skip step 3 for now though...)
+
+
+
+ENABLE	
 	(4. we then send sio_out the data given to us in param2. the chipselect-on data.)
 
+
+
+SEND	
 	(5. send this 16-bit bit-array data   to the gpio-expander chip currently selected!)
 			(via spi_data register, into the expander's latch register)
 
+
+
+DISABLE	
 	(6. we then send sio_out the "all chips unselected" value of the pin states.)
+
 
 	(7. we then increment the global_column_index)
 
+
+DELAY
 	(8. then, if we see that the column index is not 255, 
 		we then delay for a particular amount of time, based on:
 
 		. the screen brightness we are aiming for
 		. the refresh-rate that we are aiming for
 
+
 	  if it is 255, then we delay for a much smaller amount. (minimal viable delay.)
 
 		)
 
+
+
+
 	(9. we loop over steps 1 through 9, until we have processed 
 		all the given columns in the columns/pins array.)
+
 
 
 	(10. return)
@@ -131,6 +166,95 @@ at chip_function
 
 
 	ri r_jalr_op1 r_jalr_op2 0 link_register 0
+
+
+
+
+
+1202510035.040016
+
+
+	CRAPPPP
+
+						ALL OF THIS IS VOIDD
+
+
+
+
+
+					THIS IS SO MUCH MORE COMPLICATED THAN I THOUGHT IT WAS
+
+
+
+
+				WE NEED TO UPDATE  ALLLLLL THE ROW PINS      
+
+								PER COLUMN PIN CHANGINGGG
+
+
+		crappo lol 
+
+
+
+
+
+resolution to this..
+----------------
+
+
+	1. we need to pass in the chip index    to the chip_function call. as an argumnt.
+
+	2. we need to derive the chipselect bitfield  ourselves, based on the chip index arg (arg2). 
+
+	3. we need to have a "chip loop", looping over the chip-indexes, 
+
+		when we see that we are on an iteration of this "chip loop" (for i = 1, i < 5)
+		then    when i == arg2    then we must update the column pin  via the one-hot encoding bitarray
+					as i depicted above. 
+
+			and then we must OR in   the row data  for this chip,   (and this glbl col idx)
+
+
+							its only HERE that we modify the columns simultanteously with the row data. 
+
+
+		in all other cases, (i != arg2), we must simply keep all columns 0, (inactive)
+		and then do the   bitwise-and   MASKING  over the row_data, and sending that row data to the gpio chip!
+
+
+	note, notice how "i" is never 0. ie, chip0 never has any row data that we need to set. 
+		this is by design. as per the wiring of the display. 
+	
+
+
+	4. where does this rowdata chip loop  occur???
+
+			it occurs inside the chip_function. 
+
+			specifically, in replace of steps   4, 5, and 6. ie, when we are sending the one-hot encoding to the chip. 
+
+			here, we still do that, but only when we see that     i == arg2
+
+			on the other iterations of this loop, we are talking with chips  1,2,3,4.			
+			obviously, if arg2 is 0, then we'll be talking with all chips!
+
+				which means, we need to have a seperate if statement after the chip loop, (which replaces steps 4,5,6)  which is an if statement to DO steps 4, 5, 6!!!
+
+
+					and we only do this if-body    if arg2 == 0   !!!!
+
+
+			that way we still send the one-hot-encoding    to chip0,   AND we update all rowdata on all other gpio expander chips!
+
+
+
+
+	to help things a bit, we'll have a send function, (as sending spi data comes up twice in this algorithm, i think)
+
+	ie, a spi_transfer   function, where you give it the  chipselecte-active-on   state of the sio_out register, and it handles the chipselect lines, as well as writing to the spi data registers, and also the wait delay loop to wait for the transmission to stop!
+
+	we will call this function when we need to transfer data to the chips. 
+
 
 
 
