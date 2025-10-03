@@ -1,3 +1,953 @@
+
+
+(
+
+
+
+
+####unexecuted block####
+
+at chip0_columns
+	emit 1 0
+	emit 1 1
+	emit 1 2
+	emit 1 3
+	emit 1 5
+	emit 1 8
+	emit 1 9
+	emit 1 10
+	emit 1 11
+	emit 1 12
+	emit 1 13
+	emit 1 14
+	emit 1 15
+	emit 1 255
+
+at chip1_columns
+	emit 1 0
+	emit 1 1
+	emit 1 6
+	emit 1 7	
+	emit 1 10
+	emit 1 11
+	emit 1 12
+	emit 1 255
+
+at chip2_columns
+	emit 1 0	
+	emit 1 2	
+	emit 1 4	
+	emit 1 7
+	emit 1 8
+	emit 1 11	
+	emit 1 13
+	emit 1 14
+	emit 1 255
+
+at chip3_columns
+	emit 1 0
+	emit 1 1
+	emit 1 2
+	emit 1 6
+	emit 1 10
+	emit 1 11
+	emit 1 12	
+	emit 1 14
+	emit 1 255
+
+at chip4_columns
+	emit 1 0
+	emit 1 1
+	emit 1 4
+	emit 1 6	
+	emit 1 9
+	emit 1 10	
+	emit 1 13
+	emit 1 14
+	emit 1 255
+
+at chip5_columns     (there is no chip 5! this marks the end of chip4.)
+
+########################
+
+
+
+
+set global_column_index 	next incr next
+set link_register 		1
+
+at chip_function
+
+(	(we are given:
+		param0	. pointer to beginning of the array of columns/pin-indexes 	
+		param1	. pointer to the end of the columns/pins array.	
+		param2	. chipselect sio_out value when selected. 
+			
+
+	(0.1. OR the given chipselect-on bitarray  with    
+
+		0000_0000_0000_0000__10_00
+		the bottom 5 bits will be filled in by the caller.
+
+	(which keeps the RESET line still 1, so that they are not reset!)
+
+
+	(1. loop over column pin array that was given. this is the top of the loop) 
+
+	(2. construct a 16-bit    one-hot-encoded   bit-array  
+		such as    0001_0000_0000_0000
+		)
+		however, if the column pin index   value is actaully  255, 
+			then simply give all zeros instead. no active one bit.
+
+	(3. OR in the row data for this chip, and this global_column_index)
+		(we can skip this part for now though...)
+
+	(4. we then send sio_out the data given to us in param2. the chipselect-on data.)
+
+	(5. send this 16-bit bit-array data   to the gpio-expander chip currently selected!)
+			(via spi_data register, into the expander's latch register)
+
+	(6. we then send sio_out the "all chips unselected" value of the pin states.)
+
+	(7. we then increment the global_column_index)
+
+	(8. then, if we see that the column index is not 255, 
+		we then delay for a particular amount of time, based on:
+
+		. the screen brightness we are aiming for
+		. the refresh-rate that we are aiming for
+
+	  if it is 255, then we delay for a much smaller amount. (minimal viable delay.)
+
+		)
+
+	(9. we loop over steps 1 through 9, until we have processed 
+		all the given columns in the columns/pins array.)
+
+
+	(10. return)
+)
+
+
+	ri r_jalr_op1 r_jalr_op2 0 link_register 0
+
+
+
+at displayloop
+
+	(chip 0)	
+	la param0 chip0_columns
+	la param1 chip1_columns
+	li param2 01111
+	rj r_jal link_register chip_function
+
+	(chip 1)
+	la param0 chip1_columns
+	la param1 chip2_columns
+	li param2 10111
+	rj r_jal link_register chip_function
+
+	(chip 2)
+	la param0 chip2_columns
+	la param1 chip3_columns
+	li param2 11011
+	rj r_jal link_register chip_function
+
+	(chip 3)
+	la param0 chip3_columns
+	la param1 chip4_columns
+	li param2 11101
+	rj r_jal link_register chip_function
+
+	(chip 4)
+	la param0 chip4_columns
+	la param1 chip5_columns
+	li param2 11110
+	rj r_jal link_register chip_function
+
+	
+	rj r_jal 0 displayloop
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+)
+
+
+
+
+
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
+
+str "firmware.uf2" set_output_name
+set 1_second 1111_1111_1111_1111_1111_111
+
+eq 0 0 skiproutines
+at delay
+	ld ra 0
+	set iterator c0 
+	set constant c1
+	set c0 ra
+	function_begin
+	
+	set i iterator
+	set c0 i set c1 constant li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 delay
+
+at skiproutines del skiproutines
+
+rp2350
+(sect sram_start)
+sect flash_start
+start_rp2350_binary
+
+set next 	01
+set data 	next incr next
+set address 	next incr next
+
+set c0 data set c1 1111_1100_1001_1111___1101_1111_1111_1111 li
+set c0 address set c1 reset_base li
+rs r_store r_sw address data 0
+
+set c0 address set c1 clocks_base li
+ri r_imm r_add data 0 0000_0000_0001
+rs r_store r_sw address data clock_peri_control
+
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio25_ctrl
+rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio18_ctrl
+rs r_store r_sw address data io_gpio19_ctrl
+
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 0 li
+rs r_store r_sw address 0 pads_gpio16
+rs r_store r_sw address 0 pads_gpio17
+rs r_store r_sw address 0 pads_gpio18
+rs r_store r_sw address 0 pads_gpio19
+rs r_store r_sw address 0 pads_gpio25
+
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_0000_0000_0000___1100_0000_01 li
+rs r_store r_sw address data sio_gpio_oe
+
+set c0 data set c1 0000_0000_0000_0000___1100_0000_00 li
+rs r_store r_sw address data sio_gpio_out
+
+set spi 	next incr next
+set sio 	next incr next
+set ledstate 	next incr next
+
+(set complement  next incr next)
+
+set c0 spi set c1 spi0_base li
+set c0 sio set c1 sio_base li
+set c0 ledstate set c1 
+
+	1001_1001_0010_0011
+li
+
+(set c0 complement set c1 1111_1111_1111_1111 li)
+
+set c0 next set c1 1_second delay
+set c0 data set c1 0000_0000_0000_0000__0100_0000_01 li
+rs r_store r_sw sio data sio_gpio_out
+set c0 next set c1 1_second delay
+set c0 data set c1 0000_0000_0000_0000__1100_0000_00 li
+rs r_store r_sw sio data sio_gpio_out
+set c0 next set c1 1_second delay
+
+set c0 data set c1 1111_0000_0000_0000 li
+rs r_store r_sw spi data spi_control0
+set c0 data set c1 01 li
+rs r_store r_sw spi data spi_prescale
+rs r_store r_sw spi data spi_control1
+
+set c0 data set c1 0000_0000_0000_0000__10 li
+rs r_store r_sw sio data sio_gpio_out
+
+set c0 data set c1 0000_0000_0111_0010 li
+rs r_store r_sw spi data spi_data
+rs r_store r_sw spi 0 spi_data
+
+at wait
+	ri r_load r_lw data spi spi_status
+	ri r_imm r_and data data 0000_1
+	rb r_branch r_bne data 0 wait del wait
+
+set c0 data set c1 0000_0000_0000_0000__11 li
+rs r_store r_sw sio data sio_gpio_out
+
+
+
+
+at sendloop
+
+	set c0 data set c1 0000_0000_0000_0000__10 li
+	rs r_store r_sw sio data sio_gpio_out
+
+	set c0 data set c1 0010_1000_0111_0010 li
+	rs r_store r_sw spi data spi_data
+	rs r_store r_sw spi ledstate spi_data
+
+	at wait
+		ri r_load r_lw data spi spi_status
+		ri r_imm r_and data data 0000_1
+		rb r_branch r_bne data 0 wait del wait
+
+	set c0 data set c1 0000_0000_0000_0000__11 li
+	rs r_store r_sw sio data sio_gpio_out
+
+	set c0 next set c1 1_second delay
+
+	rj r_jal 0 sendloop del sendloop
+at loop
+
+set c0 address set c1 powman_base li
+set n 0000_1010_0000_0101 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data vreg_control
+set n 0000_1111_0000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+rj r_jal 0 loop del loop
+
+
+eoi
+
+
+1202510024.195920
+YAYYYYY i got the spi gpio expander program working!!! YAYY
+now we just need to code up the display function!!
+
+
+
+
+
+
+
+
+
+
+
+	(rr r_reg r_eor ledstate ledstate complement 0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(
+
+(
+	use the low power modes to sleep at 280uA with no SRAM, 330uA with SRAM retention.. 
+	trying to get this even lower.. 
+
+	1202509077.141019   
+	YAYY GOT THIS EVEN LOWER   down to  130uA now!!! in P1.7,    and then 210 in P1.4!
+
+
+(set c0 data set c1 11 li
+rs r_store r_sw address data clock_ref_control)
+
+
+
+)
+
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
+file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
+
+str "firmware.uf2" set_output_name
+
+(program register allocations)
+
+
+set data 	001
+set address 	101
+set temp	011
+set other_temp  111
+set copy	0001
+
+
+eq 0 0 skiproutines
+
+at delay
+	ld ra 0
+	set c0 ra
+	function_begin
+	
+	set i other_temp
+	set c0 i set c1 11 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 delay
+
+
+
+
+
+at delay_long
+	ld ra 0
+	set c0 ra
+	function_begin
+	
+	set i other_temp
+	set c0 i set c1 1111_1111__1111_1111_1111 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 delay_long
+
+
+
+
+at display_value
+	ld ra 0
+	set given_value c0
+	set k c1
+	set c0 ra
+	function_begin
+
+	rr r_reg r_add copy given_value 0 0 
+	set value copy
+
+	mul k 0001
+	eq k 0 skip 
+		ri r_imm r_sd value value k 
+	at skip del skip
+
+	ri r_imm r_and value value 1111_1111
+	set c0 address set c1 sio_base li
+	rs r_store r_sw address value sio_gpio_out
+
+
+	delay
+
+
+
+	del value
+	del given_value del k
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 display_value
+
+at skiproutines del skiproutines
+
+
+rp2350
+
+sect flash_start
+
+start_rp2350_binary
+
+set c0 address set c1 reset_base li
+rs r_store r_sw address 0 0
+
+
+(1202509147.180328
+YAYYYY I GOT IT WORKINGGGG THE RESETS WERE THE PROBLEM YAYYYYYY    I GOT SPI WORKING YAYYYYYY
+)
+
+set c0 address set c1 clocks_base li
+
+ri r_imm r_add data 0 0000_0000_0001
+rs r_store r_sw address data clock_peri_control
+
+set c0 data set c1 0000_0000_0000_0000___1111_1111 li
+rs r_store r_sw address data clock_ref_div
+
+set c0 data set c1 0000_0000_0000_0000___1111_1111_11 li
+rs r_store r_sw address data clock_sys_div
+
+set c0 address set c1 io_bank0_base li
+
+set c0 data set c1 101 li
+
+rs r_store r_sw address data io_gpio0_ctrl
+rs r_store r_sw address data io_gpio1_ctrl
+rs r_store r_sw address data io_gpio2_ctrl
+rs r_store r_sw address data io_gpio3_ctrl
+rs r_store r_sw address data io_gpio4_ctrl
+rs r_store r_sw address data io_gpio5_ctrl
+rs r_store r_sw address data io_gpio6_ctrl
+rs r_store r_sw address data io_gpio7_ctrl
+
+rs r_store r_sw address data io_gpio23_ctrl
+
+set c0 data set c1 1 li
+rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+rs r_store r_sw address data io_gpio18_ctrl
+rs r_store r_sw address data io_gpio19_ctrl
+
+set c0 address set c1 pads_bank0_base li
+
+(set c0 data set c1 00_00_00_000 li)
+
+rs r_store r_sw address 0 pads_gpio0
+rs r_store r_sw address 0 pads_gpio1
+rs r_store r_sw address 0 pads_gpio2
+rs r_store r_sw address 0 pads_gpio3
+rs r_store r_sw address 0 pads_gpio4
+rs r_store r_sw address 0 pads_gpio5
+rs r_store r_sw address 0 pads_gpio6
+rs r_store r_sw address 0 pads_gpio7
+
+rs r_store r_sw address 0 pads_gpio23
+
+set c0 data set c1 01 li
+rs r_store r_sw address data pads_gpio16
+rs r_store r_sw address data pads_gpio17
+rs r_store r_sw address data pads_gpio18
+rs r_store r_sw address data pads_gpio19
+
+set c0 address set c1 sio_base li
+set c0 data set c1 1111_1111_0000_0000___0000_0001_0000_0000 li
+rs r_store r_sw address data sio_gpio_oe
+rs r_store r_sw address 0 sio_gpio_out
+
+
+
+(
+
+set c0 address set c1 reset_base
+set c0 data set c1 1111_1101_1011_1111___1111_1111_1111_1111 li
+rs r_store r_sw address data 0
+
+set c0 address set c1 reset_base
+set c0 data set c1 1111_1101_1011_1111___1100_1111_1111_1111 li
+rs r_store r_sw address data 0
+
+resets		   1111_1100_1001_1111___1011_1110_1011_0000
+
+)
+
+
+
+
+
+
+
+set c0 address set c1 spi0_base li
+
+set c0 data set c1 1110_0000_0000_0000 li
+rs r_store r_sw address data spi_control0
+
+set c0 data set c1 0000_001 li
+rs r_store r_sw address data spi_prescale
+
+
+
+
+set c0 data set c1 1010_1101 li
+rs r_store r_sw address data spi_data
+set c0 data set c1 1010_1101 li
+rs r_store r_sw address data spi_data
+	
+set c0 data set c1 01 li
+rs r_store r_sw address data spi_control1
+
+set c0 data set c1 1010_1101 li
+rs r_store r_sw address data spi_data
+set c0 data set c1 1010_1101 li
+rs r_store r_sw address data spi_data
+
+
+
+
+at loop
+
+set random 00011
+set c0 random set c1 1010_1010 li
+
+set c0 address set c1 reset_base li
+ri r_load r_lw temp address 0
+
+set c0 random set c1 0 display_value
+set c0 temp set c1 00 display_value set c0 random set c1 0 display_value
+set c0 temp set c1 10 display_value set c0 random set c1 0 display_value
+set c0 temp set c1 01 display_value set c0 random set c1 0 display_value
+set c0 temp set c1 11 display_value set c0 random set c1 0 display_value
+set c0 random set c1 0 display_value
+
+rj r_jal 0 loop del loop
+
+
+
+
+
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------------
+
+
+
+
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set spi 	next incr next
+set sio 	next incr next
+set ledstate 	next incr next
+set complement  next incr next
+
+set c0 spi set c1 spi0_base li
+set c0 sio set c1 sio_base li
+set c0 complement set c1 1111_1111_1111_1111 li
+set c0 ledstate set c1 0 li
+
+set c0 data set c1 1111_0000_0000_0000 li
+rs r_store r_sw spi data spi_control0
+set c0 data set c1 01 li
+rs r_store r_sw spi data spi_prescale
+rs r_store r_sw spi data spi_control1
+
+
+
+set c0 data set c1 0000_0000_0000_0000__10 li
+rs r_store r_sw sio data sio_gpio_out
+
+set c0 data set c1 0000_0000_1110_0010 li
+rs r_store r_sw spi data spi_data
+rs r_store r_sw spi 0 spi_data
+
+at wait
+	ri r_load r_lw data spi spi_status
+	ri r_imm r_and data data 0000_1
+	rb r_branch r_bne data 0 wait del wait
+
+set c0 data set c1 0000_0000_0000_0000__11 li
+rs r_store r_sw sio data sio_gpio_out
+
+at loop
+
+	set c0 data set c1 0000_0000_0000_0000__10 li
+	rs r_store r_sw sio data sio_gpio_out
+
+	set c0 data set c1 0010_1000_1110_0010 li
+	rs r_store r_sw spi data spi_data
+	rs r_store r_sw spi ledstate spi_data
+
+	at wait
+		ri r_load r_lw data spi spi_status
+		ri r_imm r_and data data 0000_1
+		rb r_branch r_bne data 0 wait del wait
+
+	set c0 data set c1 0000_0000_0000_0000__11 li
+	rs r_store r_sw sio data sio_gpio_out
+
+	rr r_reg r_eor ledstate ledstate complement 0
+	set c0 next set c1 1_second delay
+
+	rj r_jal 0 loop del loop
+
+
+
+
+
+eoi
+
+1202510024.175152
+
+spi program, to test out the gpio expander chips working with the pico 2!!!
+
+lets see if this workssss
+
+
+
+
+
+
+(set i 00001
+set c0 i set c1 000_1 li
+at loop
+
+	set c0 address set c1 sio_base li
+	set c0 data set c1 0000_0000_0000_0000___1100_0000_01 li
+	rs r_store r_sw address data sio_gpio_out
+
+	set c0 next set c1 1_second delay
+
+	set c0 address set c1 sio_base li
+	set c0 data set c1 0000_0000_0000_0000___1100_0000_00 li
+	rs r_store r_sw address 0 sio_gpio_out
+
+	set c0 next set c1 1_second delay
+
+	ri r_imm r_add i i 1111_1111_1111
+	rb r_branch r_bne i 0 loop
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set i 0001
+set c0 i set c1 0000_1 li
+at loop
+
+	set c0 address set c1 sio_base li
+	set c0 data set c1 0000_0000_0000_0000___1100_0000_01 li
+	rs r_store r_sw address data sio_gpio_out
+
+	delay
+
+	set c0 address set c1 sio_base li
+	set c0 data set c1 0000_0000_0000_0000___1100_0000_00 li
+	rs r_store r_sw address 0 sio_gpio_out
+
+	delay
+
+	ri r_imm r_add i i 1111_1111_1111
+	rb r_branch r_bne i 0 loop
+
+
+set c0 address set c1 powman_base li
+set n 0000_1010_0000_0101 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data vreg_control
+set n 0000_1111_0000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+
+rj r_jal 0 loop del loop
+
+
+
+
+eoi
+
+
+
+
+
+a blink program, 
+finally working the way i want! 
+we should next try to use the alarm to wake up, and use low power modes instead!
+
+then, we are going to adapt this to use the spi gpio chips to blink it! instead of sio.
+
+
+
+written on 1202510013.174459 by dwrr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
