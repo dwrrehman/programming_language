@@ -1,36 +1,10 @@
-(
-
-
-  500uA  at 3.3v  1k   <----- this one is the one we'll do!
-
-x: 70uA  at 3.3v  10k     (too dim...) ;
-
-
-
-
-
-we can't run at 5v reliabily...
-
-x: 2.1mA  at 5v   1k ;
-
-x: 260uA  at 5v  10k;
-
-
-
-
-)
-
-
-
-
-
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
 
 str "firmware.uf2" set_output_name
-set 1_second 1111_1111
+set 1_second 1111_1111_1111_1111_1111_1111
 
 eq 0 0 skiproutines
 at delay
@@ -79,35 +53,45 @@ rs r_store r_sw address data clock_sys_div
 
 set c0 address set c1 io_bank0_base li
 set c0 data set c1 101 li
-rs r_store r_sw address data io_gpio0_ctrl
-rs r_store r_sw address data io_gpio1_ctrl
-rs r_store r_sw address data io_gpio2_ctrl
-rs r_store r_sw address data io_gpio3_ctrl
-rs r_store r_sw address data io_gpio4_ctrl
-rs r_store r_sw address data io_gpio5_ctrl
 rs r_store r_sw address data io_gpio25_ctrl
-set c0 data set c1 1 li
 rs r_store r_sw address data io_gpio16_ctrl
+rs r_store r_sw address data io_gpio17_ctrl
+set c0 data set c1 1 li
 rs r_store r_sw address data io_gpio18_ctrl
 rs r_store r_sw address data io_gpio19_ctrl
 
 set c0 address set c1 pads_bank0_base li
 set c0 data set c1 0 li
-rs r_store r_sw address 0 pads_gpio0
-rs r_store r_sw address 0 pads_gpio1
-rs r_store r_sw address 0 pads_gpio2
-rs r_store r_sw address 0 pads_gpio3
-rs r_store r_sw address 0 pads_gpio4
-rs r_store r_sw address 0 pads_gpio5
 rs r_store r_sw address 0 pads_gpio16
+rs r_store r_sw address 0 pads_gpio17
 rs r_store r_sw address 0 pads_gpio18
 rs r_store r_sw address 0 pads_gpio19
 rs r_store r_sw address 0 pads_gpio25
 
+set c0 address set c1 sio_base li
+set c0 data set c1 0000_0000_0000_0000___1100_0000_01 li
+rs r_store r_sw address data sio_gpio_oe
+
+set c0 data set c1 0000_0000_0000_0000___1100_0000_00 li
+rs r_store r_sw address data sio_gpio_out
+
 set spi 	next incr next
 set sio 	next incr next
+set ledstate 	next incr next
+set complement  next incr next
+
 set c0 spi set c1 spi0_base li
 set c0 sio set c1 sio_base li
+set c0 ledstate set c1 1111_1111_1111_1111 li
+set c0 complement set c1 1111_1111_1111_1111 li
+
+set c0 next set c1 1_second delay
+set c0 data set c1 0000_0000_0000_0000__0100_0000_01 li
+rs r_store r_sw sio data sio_gpio_out
+set c0 next set c1 1_second delay
+set c0 data set c1 0000_0000_0000_0000__1100_0000_00 li
+rs r_store r_sw sio data sio_gpio_out
+set c0 next set c1 1_second delay
 
 set c0 data set c1 1111_0000_0 li
 rs r_store r_sw spi data spi_control0
@@ -116,52 +100,103 @@ rs r_store r_sw spi data spi_prescale
 set c0 data set c1 01 li
 rs r_store r_sw spi data spi_control1
 
-set c0 data set c1 1111_1100_0000_0000___0000_0000_01 li
-rs r_store r_sw sio data sio_gpio_oe
-set c0 data set c1 1111_11 li
+set c0 data set c1 0000_0000_0000_0000__10 li
 rs r_store r_sw sio data sio_gpio_out
-set c0 next set c1 1_second delay
-set c0 data set c1 1111_1000_0000_0000___0000_0000_01 li
-rs r_store r_sw sio data sio_gpio_out
-set c0 next set c1 1_second delay
-set c0 data set c1 1111_11 li
-rs r_store r_sw sio data sio_gpio_out
-set c0 next set c1 1_second delay
 
-set c0 data set c1 0000_01 li
-rs r_store r_sw sio data sio_gpio_out
 set c0 data set c1 0000_0000_0111_0010 li
 rs r_store r_sw spi data spi_data
 rs r_store r_sw spi 0 spi_data
+
 at wait
 	ri r_load r_lw data spi spi_status
 	ri r_imm r_and data data 0000_1
 	rb r_branch r_bne data 0 wait del wait
-set c0 data set c1 1111_11 li
+
+set c0 data set c1 0000_0000_0000_0000__11 li
 rs r_store r_sw sio data sio_gpio_out
 
-set linkregister  1
+
+at sendloop
+
+	set c0 data set c1 0000_0000_0000_0000__10 li
+	rs r_store r_sw sio data sio_gpio_out
+
+	set c0 data set c1 0010_1000_0111_0010 li
+	rs r_store r_sw spi data spi_data
+	rs r_store r_sw spi ledstate spi_data
+
+	at wait
+		ri r_load r_lw data spi spi_status
+		ri r_imm r_and data data 0000_1
+		rb r_branch r_bne data 0 wait del wait
+
+	set c0 data set c1 0000_0000_0000_0000__11 li
+	rs r_store r_sw sio data sio_gpio_out
+
+	rr r_reg r_eor ledstate ledstate complement 0
+
+	set c0 next set c1 1_second delay
+
+	rj r_jal 0 sendloop del sendloop
+
+
+
+at loop
+
+set c0 address set c1 powman_base li
+set n 0000_1010_0000_0101 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data vreg_control
+set n 0000_1111_0000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+rj r_jal 0 loop del loop
+
+
+
+
+
+
+
+eoi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set linkregister 	1
+
 set param0 	next incr next
 set param1 	next incr next
 set param2 	next incr next
 
-set chip0_columns chip0_columns
-set chip1_columns chip1_columns
-set chip2_columns chip2_columns
-set chip3_columns chip3_columns
-set chip4_columns chip4_columns
-set chip5_columns chip5_columns
 
 at displayloop
-
-	set c0 param0 set c1 chip4_columns la
-	set c0 param1 set c1 chip5_columns la
-	set c0 param2 set c1 001 li
+	set c0 param0 set c1 chip0_columns la
+	set c0 param1 set c1 chip1_columns la
+	set c0 param2 set c1 0 li
 	rj r_jal linkregister chipfunction
 
-	set c0 param0 set c1 chip3_columns la
-	set c0 param1 set c1 chip4_columns la
-	set c0 param2 set c1 11 li
+	set c0 param0 set c1 chip1_columns la
+	set c0 param1 set c1 chip2_columns la
+	set c0 param2 set c1 1 li
 	rj r_jal linkregister chipfunction
 
 	set c0 param0 set c1 chip2_columns la
@@ -169,163 +204,182 @@ at displayloop
 	set c0 param2 set c1 01 li
 	rj r_jal linkregister chipfunction
 
-	set c0 param0 set c1 chip1_columns la
-	set c0 param1 set c1 chip2_columns la
-	set c0 param2 set c1 1 li
-	rj r_jal linkregister chipfunction
-	
-	set c0 param0 set c1 chip0_columns la
-	set c0 param1 set c1 chip1_columns la
-	set c0 param2 set c1 0 li
+	set c0 param0 set c1 chip3_columns la
+	set c0 param1 set c1 chip4_columns la
+	set c0 param2 set c1 11 li
 	rj r_jal linkregister chipfunction
 
+	set c0 param0 set c1 chip4_columns la
+	set c0 param1 set c1 chip5_columns la
+	set c0 param2 set c1 001 li
+	rj r_jal linkregister chipfunction
+	
 	rj r_jal 0 displayloop
 
 
-at chip0_columns
-	emit 1 0
-	emit 1 1
-	emit 1 01
-	emit 1 11
 
-	emit 1 001
-	emit 1 101
-	emit 1 011
-	emit 1 111
 
-	emit 1 0001
-	emit 1 1001
-	emit 1 0101
-	emit 1 1101
-
-	emit 1 1011
-	emit 1 0000_1
-
-at chip1_columns
-	emit 1 01
-	emit 1 11
-
-	emit 1 001
-	emit 1 0001
-	emit 1 1001
-	emit 1 0111
-
-	emit 1 1111
-	emit 1 0101
-	emit 1 0000_1
-
-at chip2_columns
-	emit 1 0
-
-	emit 1 11
-	emit 1 101
-	emit 1 011
-	emit 1 0001
-
-	emit 1 0101
-	emit 1 0011
-	emit 1 1111
-	emit 1 0000_1
-
-at chip3_columns
-	emit 1 0111
-	emit 1 01
-	emit 1 11
-	emit 1 001
-
-	emit 1 011
-	emit 1 0101
-	emit 1 0001
-	emit 1 1001
-
-	emit 1 0000_1
-
-at chip4_columns
-	emit 1 0011
-	emit 1 0111
-	emit 1 01
-
-	emit 1 1
-	emit 1 101
-	emit 1 011
-	emit 1 0001
-
-	emit 1 1001
-	emit 1 0000_1
-
-at chip5_columns
-	emit 1 0
-	emit 1 0
-
-at chip_row_masks
-	emit 01   0000_0000_0000_0000
-	emit 01   1100_0101_0001_0100
-
-	emit 01   0110_1001_0101_0110
-	emit 01   1100_0101_0001_1101
-
-	emit 01   1001_1001_0010_0101        (bit 11 changed to a 0, was a 1)
-	emit 01   0
 
 set pindata 	next incr next
 set chipselect 	next incr next
-set columnpin 	next incr next
+
+set constant1 	next incr next
+set bit16 	next incr next
+set pin 	next incr next
 set chip 	next incr next
-set linkregister2 	next incr next
+
+
+
+
+
+(takes in pindata and chipselect)
 
 at latch_transfer
 	rs r_store r_sw sio chipselect sio_gpio_out
 	set c0 data set c1 0010_1000_0111_0010 li
 	rs r_store r_sw spi data spi_data
 	rs r_store r_sw spi pindata spi_data
+
 	at wait
 		ri r_load r_lw data spi spi_status
 		ri r_imm r_and data data 0000_1
 		rb r_branch r_bne data 0 wait del wait
-	set c0 data set c1 1111_11 li
+
+	set c0 data set c1 1111_1000_0000_0000__1 li
 	rs r_store r_sw sio data sio_gpio_out
-	ri r_jalr_op1 r_jalr_op2 0 linkregister2 0
 
 
-at chipfunction	
+	ri r_jalr_op1 r_jalr_op2 0 linkregister 0
+
+
+
+
+
+
+at chipfunction
+	ri r_imm r_add constant1 0 1
+	ri r_imm r_sll bit16 constant1 0000_1
+	
+	
 	at columnloop
 		ri r_load r_lbu columnpin param0 0
-		ri r_imm r_add chip 0 1
-		rr r_reg r_si columnpin chip columnpin 0
-		set c0 chip set c1 1111_1111_1111_1111 li
-		rr r_reg r_and columnpin columnpin chip 0
+		rr r_reg r_sll columnpin constant1 columnpin 0
+
+		rb r_branch r_bne pin bit16 skip
+			ri r_imm r_add columnpin 0 0
+		at skip del skip
+
 		ri r_imm r_add chip 0 001
 		at chiploop
 			set c0 pindata set c1 chip_row_masks la
 			rr r_reg r_add pindata pindata chip 0
 			rr r_reg r_add pindata pindata chip 0
 			ri r_load r_lhu pindata pindata 0
+			(here, we'd put our row data into pindata!)
 
 			rb r_branch r_bne chip param2 skip
 				rr r_reg r_or pindata pindata columnpin 0
 			at skip del skip
 
-			ri r_imm r_add chipselect 0 1
-			rr r_reg r_si chipselect chipselect chip 0
-			ri r_imm r_eor chipselect chipselect 1111_11
-			rj r_jal linkregister2 latch_transfer
+			rr r_reg r_sll chipselect constant1 chip 0
+			ri r_imm r_xor chipselect chipselect 1111_1
+			rr r_reg r_or chipselect chipselect bit16 0
+
+			rj r_jal linkregister latch_transfer
+
 			ri r_imm r_add chip chip 1111_1111_1111
 			rb r_branch r_bne chip 0 chiploop
 
 		rb r_branch r_bne param2 0 skip
 			ri r_imm r_add pindata columnpin 0
-			ri r_imm r_add chipselect 0 0111_11
-			rj r_jal linkregister2 latch_transfer
+			ri r_imm r_add chipselect 0 0111_1
+			rr r_reg r_or chipselect chipselect bit16 0
+			rj r_jal linkregister latch_transfer
 		at skip del skip
 
-		rb r_branch r_beq columnpin 0 skip
-			set c0 pindata set c1 1_second delay
-		at skip del skip
+		set c0 columnpin set c1 1_second delay
 
 		ri r_imm r_add param0 param0 1
 		rb r_branch r_bne param0 param1 columnloop 
-
+	
 	ri r_jalr_op1 r_jalr_op2 0 linkregister 0
+
+
+
+at chip0_columns
+	emit 1 0
+	emit 1 1
+	emit 1 2
+	emit 1 3
+	emit 1 5
+	emit 1 8
+	emit 1 9
+	emit 1 10
+	emit 1 11
+	emit 1 12
+	emit 1 13
+	emit 1 14
+	emit 1 15
+	emit 1 16 (was 255)
+
+at chip1_columns
+	emit 1 0
+	emit 1 1
+	emit 1 6
+	emit 1 7	
+	emit 1 10
+	emit 1 11
+	emit 1 12
+	emit 1 16
+
+at chip2_columns
+	emit 1 0	
+	emit 1 2	
+	emit 1 4	
+	emit 1 7
+	emit 1 8
+	emit 1 11	
+	emit 1 13
+	emit 1 14
+	emit 1 16
+
+at chip3_columns
+	emit 1 0
+	emit 1 1
+	emit 1 2
+	emit 1 6
+	emit 1 10
+	emit 1 11
+	emit 1 12	
+	emit 1 14
+	emit 1 16
+
+at chip4_columns
+	emit 1 0
+	emit 1 1
+	emit 1 4
+	emit 1 6	
+	emit 1 9
+	emit 1 10	
+	emit 1 13
+	emit 1 14
+	emit 1 16
+
+at chip5_columns     (there is no chip 5! this marks the end of chip4.)
+
+
+
+at chip_row_masks
+	emit 01   0000_0000_0000_0000
+	emit 01   0001_0100_1100_0101
+	emit 01   0101_0110_0110_1001
+	emit 01   0001_1101_1100_0101
+
+(	emit 01   0011_0101_1001_1001     (lets edit this so that one bit is on!)      )
+	emit 01   0011_0101_1001_1000     (note that, this value is wrong! i flipped the last bit.)    
+
+
+
 
 
 
@@ -356,22 +410,6 @@ now we just need to code up the display function!!
 
 
 	(rr r_reg r_eor ledstate ledstate complement 0)
-
-
-
-
-
-
-
-	(at l
-	set c0 data set c1 1111_1000_0000_0000___0000_0000_01 li
-	rs r_store r_sw sio data sio_gpio_out
-	set c0 columnpin set c1 1_second delay	
-	set c0 data set c1 1111_1000_0000_0000___0000_0000_00 li
-	rs r_store r_sw sio data sio_gpio_out
-	set c0 columnpin set c1 1_second delay	
-	rj r_jal 0 l)
-
 
 
 
@@ -691,12 +729,12 @@ at latch_transfer
 
 at chipfunction
 	ri r_imm r_add constant1 0 1
-	ri r_imm r_si bit16 constant1 0000_1
+	ri r_imm r_sll bit16 constant1 0000_1
 	
 	
 	at columnloop
 		ri r_load r_lbu columnpin param0 0
-		rr r_reg r_si columnpin constant1 columnpin 0
+		rr r_reg r_sll columnpin constant1 columnpin 0
 
 		rb r_branch r_bne pin bit16 skip
 			ri r_imm r_add columnpin 0 0
@@ -714,8 +752,8 @@ at chipfunction
 				rr r_reg r_or pindata pindata columnpin 0
 			at skip del skip
 
-			rr r_reg r_si chipselect constant1 chip 0
-			ri r_imm r_eor chipselect chipselect 1111_1
+			rr r_reg r_sll chipselect constant1 chip 0
+			ri r_imm r_xor chipselect chipselect 1111_1
 			rr r_reg r_or chipselect chipselect bit16 0
 
 			rj r_jal linkregister latch_transfer
@@ -818,69 +856,6 @@ at displayloop
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(
-
-at sendloop
-
-	set c0 data set c1 0000_0000_0000_0000__10 li
-	rs r_store r_sw sio data sio_gpio_out
-
-	set c0 data set c1 0010_1000_0111_0010 li
-	rs r_store r_sw spi data spi_data
-	rs r_store r_sw spi ledstate spi_data
-
-	at wait
-		ri r_load r_lw data spi spi_status
-		ri r_imm r_and data data 0000_1
-		rb r_branch r_bne data 0 wait del wait
-
-	set c0 data set c1 0000_0000_0000_0000__11 li
-	rs r_store r_sw sio data sio_gpio_out
-
-	rr r_reg r_eor ledstate ledstate complement 0
-
-	set c0 next set c1 1_second delay
-
-	rj r_jal 0 sendloop del sendloop
-
-)
-
-
-at loop
-
-set c0 address set c1 powman_base li
-set n 0000_1010_0000_0101 add n powman_password
-set c0 data set c1 n li
-rs r_store r_sw address data vreg_control
-set n 0000_1111_0000_0000 add n powman_password
-set c0 data set c1 n li
-rs r_store r_sw address data powman_state
-
-processor_sleep
-rj r_jal 0 loop del loop
 
 
 
@@ -3401,108 +3376,5 @@ halt
 
 
 
-
-
-
-at chip0_columns
-
-	emit 1 0    8
-	emit 1 1    9
-	emit 1 2    10
-	emit 1 3    11
-	emit 1 5    13
-
-	emit 1 8    0
-	emit 1 9    1
-	emit 1 10   2
-	emit 1 11   3
-
-	emit 1 12   4
-	emit 1 13   5
-	emit 1 14   6
-	emit 1 15   7
-
-	emit 1 16 (was 255)
-
-at chip1_columns
-
-	emit 1 0    8
-	emit 1 1    9
-	emit 1 6    14
-	emit 1 7    15
-
-	emit 1 10   2
-	emit 1 11   3
-	emit 1 12   4
-
-	emit 1 16
-
-at chip2_columns
-
-	emit 1 0   8 
-	emit 1 2   10
-	emit 1 4   12
-	emit 1 7   15
-
-	emit 1 8   0
-	emit 1 11  3
-	emit 1 13  5
-	emit 1 14  6
-
-	emit 1 16
-
-at chip3_columns
-
-	emit 1 0   8
-	emit 1 1   9
-	emit 1 2   10
-	emit 1 6   14
-
-	emit 1 10  2
-	emit 1 11  3
-	emit 1 12  4
-	emit 1 14  6
-
-	emit 1 16
-
-at chip4_columns
-
-	emit 1 0    8
-	emit 1 1    9
-	emit 1 4    12
-	emit 1 6    14
-
-	emit 1 9    1
-	emit 1 10   2
-	emit 1 13   5
-	emit 1 14   6
-
-	emit 1 16
-
-
-
-
-at chip5_columns     (there is no chip 5! this marks the end of chip4.)
-
-
-(
-at chip_row_masks
-	emit 01   0000_0000_0000_0000
-	emit 01   0001_0100_1100_0101
-	emit 01   0101_0110_0110_1001
-	emit 01   0001_1101_1100_0101
-
-(	emit 01   0011_0101_1001_1001     (lets edit this so that one bit is on!)      )
-	emit 01   0011_0101_1001_1000     (note that, this value is wrong! i flipped the last bit.)    
-)
-
-
-
-at chip_row_masks
-	emit 01   0000_0000_0000_0000
-	emit 01   1100_0101_0001_0100
-	emit 01   0110_1001_0101_0110
-	emit 01   1100_0101_0001_1101
-	emit 01   1001_1001_0011_0100     (note that, this value is wrong! i flipped bit 15.)    
 
 
