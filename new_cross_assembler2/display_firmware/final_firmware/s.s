@@ -30,7 +30,9 @@ file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library
 file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/rp2350.s
 
 str "firmware.uf2" set_output_name
-set 1_second 1111_1111
+
+set 1_second  1111_1111_1111_1111__111
+(set 1_second 1111)
 
 eq 0 0 skiproutines
 at delay
@@ -53,9 +55,13 @@ at delay
 
 at skiproutines del skiproutines
 
+
+
 rp2350
+
 (sect sram_start)
 sect flash_start
+
 start_rp2350_binary
 
 set next 	01
@@ -183,49 +189,51 @@ at displayloop
 
 
 at chip0_columns
-	emit 1 0
-	emit 1 1
-	emit 1 01
-	emit 1 11
+	emit 1 01   (0)
+	emit 1 11   (1)
+	emit 1 1   (2)
+	emit 1 0   (3)
 
-	emit 1 001
-	emit 1 101
-	emit 1 011
-	emit 1 111
+	emit 1 001   (4)
+	emit 1 011   (5)
+	emit 1 111   (6)
+	emit 1 101   (7)
 
-	emit 1 0001
-	emit 1 1001
-	emit 1 0101
-	emit 1 1101
+	emit 1 0101   (8)
+	emit 1 1001   (9)
+	emit 1 1011   (10)
+	emit 1 0001   (11)
 
-	emit 1 1011
+	emit 1 1101   (12)
 	emit 1 0000_1
 
 at chip1_columns
-	emit 1 01
-	emit 1 11
+	emit 1 0111   (0)
+	emit 1 1111   (1)
 
-	emit 1 001
-	emit 1 0001
-	emit 1 1001
-	emit 1 0111
+	emit 1 01   (2)
+	emit 1 11   (3)
+	emit 1 0101   (4)
+	emit 1 0001  (5)
 
-	emit 1 1111
-	emit 1 0101
+	emit 1 001  (6)
+	emit 1 1001   (7)
 	emit 1 0000_1
+
 
 at chip2_columns
-	emit 1 0
+	emit 1 1111  (0)
 
-	emit 1 11
-	emit 1 101
-	emit 1 011
-	emit 1 0001
+	emit 1 11    (1)
+	emit 1 0     (2)
+	emit 1 011   (3)
+	emit 1 101   (4)
 
-	emit 1 0101
-	emit 1 0011
-	emit 1 1111
+	emit 1 0001  (5)
+	emit 1 0101  (6)
+	emit 1 0011  (7)
 	emit 1 0000_1
+
 
 at chip3_columns
 	emit 1 0111
@@ -240,6 +248,8 @@ at chip3_columns
 
 	emit 1 0000_1
 
+
+
 at chip4_columns
 	emit 1 0011
 	emit 1 0111
@@ -253,25 +263,53 @@ at chip4_columns
 	emit 1 1001
 	emit 1 0000_1
 
+
 at chip5_columns
 	emit 1 0
 	emit 1 0
 
+(at chip_row_masks
+	emit 01   0000_0000_0000_0000
+	emit 01   0100_0101_0001_0100    (first bit changed!)
+
+	emit 01   0110_1001_0101_0110
+	emit 01   1100_0101_0001_1100     (last bit changed!)
+
+	emit 01   1001_1001_0010_0101        (bit 11 changed to a 0, was a 1)
+	emit 01   0
+)
+
+(all ones:)
 at chip_row_masks
 	emit 01   0000_0000_0000_0000
-	emit 01   1100_0101_0001_0100
+	emit 01   0000_0000_0000_0000
+
+	emit 01   0000_0000_0000_0000
+	emit 01   0000_0000_0000_0000
+
+	emit 01   0000_0000_0000_0000
+	emit 01   0
+
+
+
+(all zeros
+
+at chip_row_masks
+	emit 01   0000_0000_0000_0000
+	emit 01   1100_0101_0001_0100 
 
 	emit 01   0110_1001_0101_0110
 	emit 01   1100_0101_0001_1101
 
-	emit 01   1001_1001_0010_0101        (bit 11 changed to a 0, was a 1)
+	emit 01   1001_1001_0011_0101
 	emit 01   0
+)
 
 set pindata 	next incr next
 set chipselect 	next incr next
 set columnpin 	next incr next
 set chip 	next incr next
-set linkregister2 	next incr next
+set linkregister2  next incr next
 
 at latch_transfer
 	rs r_store r_sw sio chipselect sio_gpio_out
@@ -285,7 +323,6 @@ at latch_transfer
 	set c0 data set c1 1111_11 li
 	rs r_store r_sw sio data sio_gpio_out
 	ri r_jalr_op1 r_jalr_op2 0 linkregister2 0
-
 
 at chipfunction	
 	at columnloop
@@ -326,7 +363,6 @@ at chipfunction
 		rb r_branch r_bne param0 param1 columnloop 
 
 	ri r_jalr_op1 r_jalr_op2 0 linkregister 0
-
 
 
 

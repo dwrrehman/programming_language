@@ -282,10 +282,6 @@ sect start_of_flash
 	mo m_mov  fixed_mode fixed_reg p1dir    const-1_mode const-1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1out    const1_mode const1_reg 0 size_byte
 
-
-
-
-
 	mo m_mov  fixed_mode fixed_reg p1sel    imm_mode imm_reg 0000_0101 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel2   imm_mode imm_reg 0000_0101 size_byte
 	mo m_bic  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
@@ -314,16 +310,14 @@ sect start_of_flash
 	mo m_mov  fixed_mode fixed_reg p1sel    const0_mode const0_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel2   const0_mode const0_reg 0 size_byte
 
-	 
-
-
+	
 	set data 001
 	mo m_mov  reg_mode data 0    const0_mode const0_reg 0 size_byte
 	mo m_bis  fixed_mode fixed_reg ie1     const1_mode const1_reg 0 size_byte
 	mo m_bic  fixed_mode fixed_reg ifg1    const1_mode const1_reg 0 size_byte		
 	mo m_bis  reg_mode sr 0  imm_mode imm_reg 0001_1011  size_word
 	m_nop
-	at error    mb condjmp error del error 
+ 	at error    mb condjmp error del error 
 	m_nop
 
 
@@ -336,8 +330,6 @@ at ucb0tx_interrupt_routine
 at wdt_interrupt_routine
 	mo m_xor  fixed_mode fixed_reg p2out    const4_mode const4_reg 0 size_byte
 	mo m_xor  reg_mode data 0    const-1_mode const-1_reg 0 size_byte
-
-
 
 
 
@@ -368,7 +360,6 @@ at wdt_interrupt_routine
 	mo m_bis  fixed_mode fixed_reg ucb0ctl1 const1_mode const1_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel    const0_mode const0_reg 0 size_byte
 	mo m_mov  fixed_mode fixed_reg p1sel2   const0_mode const0_reg 0 size_byte
-
 
 
 
