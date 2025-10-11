@@ -5,13 +5,218 @@ file /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library
 
 str "firmware.uf2" set_output_name
 
-set data 	001
-set address 	101
-set temp	011
-set other_temp  111
-set copy	0001
+set next        01
+set data 	next incr next
+set address 	next incr next
+set temp	next incr next
+set other_temp  next incr next
+set copy	next incr next
+set led_state   next incr next
+set ram   	next incr next
 
 eq 0 0 skiproutines
+at delay
+	ld ra 0
+	set c0 ra
+	function_begin	
+	set i other_temp
+	set c0 i set c1 1111_1111_1111_1111_1111 li
+	at l
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 l
+	del l del i
+	function_end
+	eq 0 0 ra del ra
+	lt 0 0 delay
+at skiproutines del skiproutines
+
+rp2350
+(sect sram_start)
+sect flash_start
+start_rp2350_binary
+
+set c0 data set c1 1111_1100_1001_1111___1111_1111_1111_1111 li
+set c0 address set c1 reset_base li
+rs r_store r_sw address data 0
+set c0 address set c1 clocks_base li
+ri r_imm r_add data 0 0000_0000_0001
+rs r_store r_sw address data clock_peri_control
+
+set c0 address set c1 io_bank0_base li
+set c0 data set c1 101 li
+rs r_store r_sw address data io_gpio0_ctrl
+set c0 address set c1 pads_bank0_base li
+set c0 data set c1 1 li
+rs r_store r_sw address 0 pads_gpio0
+set c0 data set c1 01 li
+set c0 address set c1 sio_base li
+set c0 data set c1 1 li
+rs r_store r_sw address data sio_gpio_oe
+
+set c0 ram set c1 sram_start li
+set c0 address set c1 powman_base li
+ri r_load r_lw data address last_swcore_pwrup
+ri r_imm r_add temp 0 1
+rb r_branch r_bne data temp skip_boot
+	ri r_imm r_add led_state 0 0
+	rs r_store r_sw ram led_state 0
+	set c0 address set c1 sio_base li	
+	set i 0001
+	set c0 i set c1 0001 li
+	set c0 data set c1 1 li
+	at loop		
+		rs r_store r_sw address data sio_gpio_out
+		delay
+		rs r_store r_sw address 0 sio_gpio_out
+		delay
+	
+		ri r_imm r_add i i 1111_1111_1111
+		rb r_branch r_bne i 0 loop 
+		del loop
+
+at skip_boot del skip_boot
+
+set c0 address set c1 sio_base li
+ri r_load r_lw led_state ram 0
+ri r_imm r_eor led_state led_state 1
+ri r_imm r_and led_state led_state 1
+rs r_store r_sw address led_state sio_gpio_out
+rs r_store r_sw ram led_state 0
+
+set c0 address set c1 powman_base li
+set n 1000_0110_1000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+set n 0000_0000_0000_1 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data alarm_time_15to0
+set n 1110_1110_1000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_timer
+
+set c0 address set c1 powman_base li
+set n 0000_1010_0000_0101 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data vreg_control
+set n 0000_1011_0000_0000 add n powman_password
+set c0 data set c1 n li
+rs r_store r_sw address data powman_state
+
+processor_sleep
+
+eoi
+
+
+
+
+
+
+
+blink program, finally working the way i want!!
+updated on 1202510013.174435
+
+1202510083.033816
+updated to use the alarm system to wake up every second or so! consumes 240uA  on the pico 2, and 40 microamps less on the pico 2w!
+which is pretty much according to the datasheet lol 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set c0 ram set c1 sram_start li
+set c0 address set c1 powman_base li
+i r_load r_lw data address last_swcore_pwrup
+ri r_imm r_add temp 0 1
+rb r_branch r_bne data temp skip_boot 
+
+	ri r_imm r_add led_state 0 0
+	rs r_store r_sw ram led_state 0
+
+	set c0 address set c1 sio_base li
+
+
+
+
+at skip_boot del skip_boot
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+(set i 0001
+set c0 i set c1 0000_1 li
+at loop
+	set c0 data set c1 1 li
+	rs r_store r_sw address data sio_gpio_out
+	delay
+	rs r_store r_sw address 0 sio_gpio_out
+	delay
+
+	ri r_imm r_add i i 1111_1111_1111
+	rb r_branch r_bne i 0 loop)
+
+
+
+
+
+
+
+
+
+
+
+(eq 0 0 skiproutines
 
 at delay
 	ld ra 0
@@ -29,73 +234,7 @@ at delay
 	eq 0 0 ra del ra
 	lt 0 0 delay
 
-at skiproutines del skiproutines
-
-rp2350
-
-(sect sram_start)
-sect flash_start
-
-start_rp2350_binary
-
-set c0 data set c1 1111_1100_1001_1111___1111_1111_1111_1111 li
-set c0 address set c1 reset_base li
-rs r_store r_sw address data 0
-
-ri r_imm r_add data 0 0000_0000_0001
-rs r_store r_sw address data clock_peri_control
-
-set c0 address set c1 clocks_base li
-
-set c0 address set c1 io_bank0_base li
-set c0 data set c1 101 li
-rs r_store r_sw address data io_gpio0_ctrl
-
-set c0 address set c1 pads_bank0_base li
-set c0 data set c1 1 li
-rs r_store r_sw address 0 pads_gpio0
-set c0 data set c1 01 li
-
-set c0 address set c1 sio_base li
-set c0 data set c1 1 li
-rs r_store r_sw address data sio_gpio_oe
-rs r_store r_sw address 0 sio_gpio_out
-
-set i 0001
-set c0 i set c1 0000_1 li
-at loop
-	set c0 data set c1 1 li
-	rs r_store r_sw address data sio_gpio_out
-	delay
-	rs r_store r_sw address 0 sio_gpio_out
-	delay
-
-	ri r_imm r_add i i 1111_1111_1111
-	rb r_branch r_bne i 0 loop
-
-
-set c0 address set c1 powman_base li
-set n 0000_1010_0000_0101 add n powman_password
-set c0 data set c1 n li
-rs r_store r_sw address data vreg_control
-set n 0000_1111_0000_0000 add n powman_password
-set c0 data set c1 n li
-rs r_store r_sw address data powman_state
-
-processor_sleep
-
-rj r_jal 0 loop del loop
-
-eoi
-
-blink program, finally working the way i want!!
-
-updated on 1202510013.174435
-
-
-
-
-
+at skiproutines del skiproutines)
 
 
 

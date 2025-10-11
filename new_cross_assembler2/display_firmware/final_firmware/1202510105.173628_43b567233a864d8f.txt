@@ -1,0 +1,51 @@
+> `LAST_SWCORE_PWRUP` does not seem reliable even without any debugprobe attached. It always reads `2` (which is pwrup1 according to the docs), but I am only testing with a single GPIO and I am using pwrup0 which should turn up as `1`.
+> 
+> Also, after a chip reset I see a `1` instead of the documented `0`.
+
+Hi, I am currently implementing the P1.x low power modes from scratch in RISC-V assembly (without a debugger at all), and am only using the RP2350 datasheet to write this program. I came across this confusion at first as well, when the RP2350 datasheet says the following in the LAST_SWCORE_PWRUP (POWMAN) register in chapter 6:
+
+> Indicates which pwrup source triggered the last switched-core power up:
+> 0 = chip reset, for the source of the last reset see POWMAN_CHIP_RESET 
+> 1 = pwrup0
+> 2 = pwrup1
+> 3 = pwrup2
+> 4 = pwrup3
+> 5 = coresight_pwrup
+> 6 = alarm_pwrup
+
+what it really means is:
+
+> Indicates which pwrup source triggered the last switched-core power up:
+> bit 0 = if 1, then indicates chip reset, for the source of the last reset see POWMAN_CHIP_RESET 
+> bit 1 = if 1, then indicates pwrup0
+> bit 2 = if 1, then indicates pwrup1
+> bit 3 = if 1, then indicates pwrup2
+> bit 4 = if 1, then indicates pwrup3
+> bit 5 = if 1, then indicates coresight_pwrup
+> bit 6 = if 1, then indicates alarm_pwrup
+
+This explains the values you were seeing, and also can be deduced by the fact that the LAST_SWCORE_PWRUP register contains 7 bits, (bits 0 through 6). Taking this into account in my programs, yields this register always having the correct value according to the datasheet, i've never seen it do anything unreliable or odd so far. 
+
+
+As of today, I have gotten low-power mode LED-toggling programs working on the Pico 2 and 2W, using low-power modes P1.4 / P1.6 (SRAM retention seems to be required for any sort of stateful low-power application on the RP2350), and using both types of possible wake-ups on the RP2350: 
+
+- using GPIO wake-ups (via PWRUP0 on GPIO pin 15), and 
+- using ALARM_TIMER (which is synonymous with the AON timer, as well as the POWMAN timer, on the RP2350). 
+
+From my testing with a current-measuring multimeter in series with 5v being applied to the VSYS pin, I have gotten both GPIO-based and ALARM-based programs sleeping at currents of less than 210uA on the Pico 2W boards, and less than 240uA on the Pico 2 boards. 
+
+(The discrepancy between the Pico 2 and Pico 2W here is due to the schematic on the Pico 2 containing some current-consuming resistors in the analog input circuitry, and a lot of the other current here is from the regulator/other circuitry besides the RP2350 itself, which should be able to sleep down to around 19uA / 68uA / 120uA (depending on how much SRAM domains you have enabled) according the RP2350 datasheet.)
+
+If it helps save you some trouble, I did notice I had to do something in my program that was quite non-obvious in order to allow multiple time-consecutive GPIO wakeups, and the datasheet doesn't spell this out in great detail. To re-enable a GPIO wakeup on a given pin after a low-power mode GPIO wakeup, I had to write to PWRUP0 twice: once with {STATUS=0b1,ENABLE=0b0}, and then again with {STATUS=0b1,ENABLE=0b1}. I deduced I had to do this, due to the datasheet saying the following under the ENABLE field of the PWRUP0 register:
+
+> ENABLE: Set to 1 to enable the wakeup source. Set to 0 to disable the wakeup source and clear a pending wakeup event.
+If using edge detect a latched edge needs to be cleared by writing 1 to the status register also.
+
+....which, from my interpretation sounds like you genuinely need to clear a pending wake up event first, separately, and then can enable the new GPIO wake up again after that past event has been cleared. 
+
+
+Anyways, hope this helps! The Pico SDK doesn't seem totally exhaustive on this subject of low power modes, so i'd be happy to share my RISC-V assembly code / pseudocode for my register writes if you ever get stuck further down the line. :)
+
+
+
+

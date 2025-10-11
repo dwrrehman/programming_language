@@ -69,14 +69,15 @@ set powman_password 	0000_0000_0000_0000___0111_1111_0101_1010
 set vreg_control 	001
 set last_swcore_pwrup	0000_0101
 set powman_state 	0001_1100
-set powman_timer 	0001_0001
-set alarm_time_15to0  	0010_0001
-set alarm_time_31to16	0000_0001
-set alarm_time_47to32	0011_1110
+
 set alarm_time_63to48	0001_1110
+set alarm_time_47to32	0011_1110
+set alarm_time_31to16	0000_0001
+set alarm_time_15to0  	0010_0001
 
-
-
+set powman_timer 	0001_0001
+set powman_pwrup0       0011_0001
+set powman_pwrup1       0000_1001
 
 
 
