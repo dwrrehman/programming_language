@@ -47,6 +47,18 @@ Although it is optional, End-of-input is included here to allow for commenting o
 Although there are no functions in this language, the feature of user-definable macros allow for creating effectively "always inline" functions that behave mostly as functions would, allowing for library functionality.
 
 
+
+
+
+### Semantics of `at` and `emit` statements
+
+In this language, the bytes of the output executable are controllable directly be the user's program, similar to an assembler, or other very low level programming enviornment. this allows for the user to layout arrays and how they use memory precisely, as well as manage the references into memory at a lower level of control. 
+
+The `at` instruction is used here, to often define the location of not a statement, but data which can be read or written by the program. this data can be technically included anywhere in the executable, however most of the time for executables meant for non-embedded enviornments, data must be readonly, and copied into runtime memory if you wish it to be writable.
+
+The `emit` statement allows one to computationally construct values which are to be emited to the executable. an interesting constraint which this instruction has, however, is that the computation needs to be compiletime known, specifically the value needs to be deduced by the constant-propagation phase of the optimizing compiler's backend. if this cannot be done, an error will be given. 
+
+
 ### Semantics of `define` and `del` statements
 
 Although there is no concept of "scopes" in this language, The symbol tabel is able to be edited arbitrarily using the `define` and `del` statements, allowing for code such as the following:
@@ -65,6 +77,7 @@ del myvariable
 Which, has the effect of creating local scopes which can nest in arbitrary ways, some of which are not even possible to create in traditional "scope"-based programming languages. The `del` statements does not take into account control flow at all, it is purely based on the sequence of stateents interpretted as a linear sequence. 
 
 
+
 ### Syntax for Expressions
 
 Additionally, all expressions are written in prefix notation, which simplifies both the programmers mental model, and the frontend's parser, albeit at the cost of mild unfamiliarity. All operators take two arguments as input, and output one value unless otherwise stated. The following operators are defined as valid in expressions in this language:
@@ -73,33 +86,33 @@ Additionally, all expressions are written in prefix notation, which simplifies b
 
 - `+` : addition
 
-- `-` subtraction
+- `-` : subtraction
 
-- `*` multiply
+- `*` : multiply
 
-- `/` division
+- `/` : division
 
-- `%` remainder
+- `%` : remainder
 
 #### Bitwise Logical Operators
 
-- `&` bitwise-and
+- `&` : bitwise-and
 
-- `|` bitwise-or
+- `|` : bitwise-or
 
-- `~` bitwise-exclusive-or
+- `~` : bitwise-exclusive-or
 
-- `^` bitwise shift up
+- `^` : bitwise shift up  (similar to shift left, logically)
 
-- `!` bitwise shift down
+- `!` : bitwise shift down  (similar to shift right, logically)
 
 #### Other Operators
 
-- `@` unary load/store 32/64-bit word
+- `@` : unary load/store 32/64-bit word
 
-- `<` set to 1 if less than, else set to 0
+- `<` : set to 1 if less than, else set to 0
 
-- `=` set to 1 if equal to, else set to 0
+- `=` : set to 1 if equal to, else set to 0
 
 
 ### Comments
@@ -107,11 +120,19 @@ Additionally, all expressions are written in prefix notation, which simplifies b
 As a result of this prefix-operator-based design, this means that parenthesis are never used in this language for the purposes of expressions. Thus, multi-line, nest-able comments are denoted with the following syntax:
 
 ```
-(This is a comment!
+(this is a comment)
+
+(...This is also a comment!
+
     it can span multiple lines!
+
 	(and can even contain other 
       other balanced 
- parenthesis inside!))
+ parenthesis inside!)
+)
+
+((()(((also a valid comment))(()))(())))
+
 ```
 
 ### Expression Examples
@@ -198,86 +219,43 @@ at composite
 eoi
 ```
 
+### Other Final Details
 
+Due to the fact that there are only ever a limited number of registers on actual machine ISA's, there can only ever be a limited number of active user variables in flight at once. In this language, for performance reasons, accesses memory will not happen due to register spilling onto stack memory. If register allocation fails to allocate with the finite number of registers, an error is given. To correct this, the user needs to adjust their program accordingly to manually spill the variables they wish to spill to the stack, keeping other more important ones still in variable registers, or the user needs to perform some other sort of bit-compression storage solution to be able to fit the current working-variables into the available registers. This is not done automatically by the compiler. 
 
+### Macros Syntax and Semantics
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Additionally, a major feature of the language, macros, are still under development, as their syntax and semantics has a few problems which must be solved before they are useful at user-level. However, the basic syntax of them consists of a prefix-based syntax, where the operation name is said first, followed by a whitespace seperated list of expressions for each of the arguments of the macro. no commas, or parentheses are needed as is typically found in languages like C. 
 
 ```
-hello this is a test
-for (nat i = 0; i < count; i++) {
-	puts("hi lol");
-}
+(an example macro definition:)
+
+macro my_macro 3
+	define a = arg0
+	define b = arg1
+	define c = arg2
+
+	(...some code which uses "a", "b", and "c"...)
+
+	del a del b del c
+endmacro
+
+(an example macro call:)
+
+my_macro + 4 5 * 8 9 < 3 10
+
+(the above call is equivlent to calling a macro in C, like:
+	my_macro(4 + 5, 8 * 9, 3 < 10);
+)
+
 ```
 
-we will be creating the syntax and specifications for the programming language now!
-
-we will first start with making the `for` construct, which will begin using the following features:
-
-- the first feature
-- the second feature
-- the third feature
+The semantics of whether arguments are l-values, r-values, or references is still being decided, as this has large consequences on how usable the macro system will be for more abtract use cases, such as macros which are able to define/initialize variables for you, with a single macro call. The basic structure of macros, and their usage is done, however. 
 
 
-and then we will do the next thing, which is the following
-
-
-```
-// this is a comment lol
-function(bubbles, beans) {
-
-	// the users code goes here!
-}
-```
-
-
-and as you can see, its quite easy! 
+(end of document.)
 
 
 
-(end of the document)
 
 
