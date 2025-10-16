@@ -6,7 +6,7 @@ This project is a compiler for a C-like programming language, which is aimed at 
 
 The language has a syntax similar to early languages like B, however it tries to simplify some of the artificial complexity caused by infix notation, types, functions, as well as strings/arrays. These things are acheived in slightly different ways, which ends up simplifying the language overall.
 
-Also, notice there are no statement seperators required between vaild instructions. Due to the fully prefix nature of the grammar, these seperators are not neccessary for the parser to get the right parse. additionally, all whitespace which isnt neccessary for delimiting neighboring words are ignored. There are no strings, and only decimal literals are supported currently. 
+Unlike most C-like languages, there are no statement seperators required between vaild instructions and curly braces are not neccessary either, similar to python or LISP. Due to the fully prefix nature of the grammar, these seperators are not neccessary for the parser to get the right parse. additionally, all whitespace which isnt neccessary for delimiting neighboring words are ignored. There are no strings, and only decimal literals are supported currently. 
 
 There are user-defined variables in this language, defined using the "define" statement, and undefined using the "del" statement. Additionally, low-level control flow is provided using if statements, and goto statements, however more common loops can be made using the repeat-while statement. 
 
@@ -48,8 +48,6 @@ Although there are no functions in this language, the feature of user-definable 
 
 
 
-
-
 ### Semantics of `at` and `emit` statements
 
 In this language, the bytes of the output executable are controllable directly be the user's program, similar to an assembler, or other very low level programming enviornment. this allows for the user to layout arrays and how they use memory precisely, as well as manage the references into memory at a lower level of control. 
@@ -57,6 +55,9 @@ In this language, the bytes of the output executable are controllable directly b
 The `at` instruction is used here, to often define the location of not a statement, but data which can be read or written by the program. this data can be technically included anywhere in the executable, however most of the time for executables meant for non-embedded enviornments, data must be readonly, and copied into runtime memory if you wish it to be writable.
 
 The `emit` statement allows one to computationally construct values which are to be emited to the executable. an interesting constraint which this instruction has, however, is that the computation needs to be compiletime known, specifically the value needs to be deduced by the constant-propagation phase of the optimizing compiler's backend. if this cannot be done, an error will be given. 
+
+In practice, this allows for user-level construction of things like arrays (by saying `at` followed by a list of `emit`'s), maps (similar approach to arrays, with interleaved or seperate key-values being emitted), structs (by defining constants which correspond to different offsets in a struct), etc. Almost any read-only data-structure can be constructed at user level using these two instructions. 
+
 
 
 ### Semantics of `define` and `del` statements
@@ -74,7 +75,7 @@ del myvariable
 
 ```
 
-Which, has the effect of creating local scopes which can nest in arbitrary ways, some of which are not even possible to create in traditional "scope"-based programming languages. The `del` statements does not take into account control flow at all, it is purely based on the sequence of stateents interpretted as a linear sequence. 
+Which, has the effect of creating local scopes which can nest in arbitrary ways, some of which are not even possible to create in traditional "scope"-based programming languages. The `del` statements does not take into account control flow at all, it is purely based on the sequence of statements interpretted as a linear sequence. 
 
 
 
@@ -191,7 +192,9 @@ define average = / sum count del sum
 exit 0    (<---- this is a macro from the standard library, 
 		to issue an "exit" system call, lets say.)
 at array
-	emit 4 emit 5 emit 12 emit 2 emit 23 emit 8 emit 1
+	emit 4 emit 5 emit 12 
+	emit 2 emit 23 emit 8 
+	emit 1
 eoi
 
 ```
