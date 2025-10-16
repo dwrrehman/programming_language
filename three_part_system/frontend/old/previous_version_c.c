@@ -1,7 +1,6 @@
 // a simple c-like language compiler / byte-code interpreter, just for fun.
 // written by dwrr  on 202403273.011738
 // rewritten on 1202509092.005051 by dwrr
-// rewritten on 1202510127.013554 to use NBT-UCSR
 
 #include <stdio.h>
 #include <string.h>
@@ -16,6 +15,101 @@
 #include <stdnoreturn.h>
 
 typedef uint64_t nat;
+
+static const char* keywords[] = {
+	"eoi", 
+	"at", "do", "while", "repeat", 
+	"if", "then", "else", "end", 
+	"set", "define",
+};
+
+static const nat keyword_count = sizeof keywords / sizeof(char*);
+
+static const char* operators = "<=+-*/%&|~^!()@";
+
+enum token_type {
+	null_token, number_token, name_token,
+
+	eoi_token, 
+	at_token, do_token, while_token, repeat_token, 
+	if_token, then_token, else_token, end_token, 
+	set_token, define_token,
+
+	less_token, equal_token,
+	add_token, subtract_token, 
+	multiply_token, divide_token, remainder_token, 
+	and_token, or_token, eor_token,
+	shiftup_token, shiftdown_token, 
+	open_paren_token, close_paren_token, 
+	deref_token,
+
+	token_type_count
+};
+
+static const char* token_spelling[token_type_count] = {
+	"null_token", "number_token", "name_token",
+
+	"eoi_token", 
+	"at_token", "do_token", "while_token", "repeat_token", 
+	"if_token", "then_token", "else_token", "end_token", 
+	"set_token", "define_token",
+
+	"less_token", "equal_token", 
+	"add_token", "subtract_token", 
+	"multiply_token", "divide_token", "remainder_token", 
+	"and_token", "or_token", "eor_token",
+	"shiftup_token", "shiftdown_token", 
+	"open_paren_token", "close_paren_token", 
+	"deref_token", 
+	
+};
+
+enum node_type {
+	null_node, 
+	name_node, 
+	identifier_node,
+	number_node, 
+	sum_node, 
+	product_node, 
+	subtraction_node,
+	division_node,
+	remainder_node,
+	load_node,
+	at_node,
+	do_node,
+	define_node,
+	assignment_node,
+	store_node,
+	expression_node, 
+	if_node,
+	repeat_node,
+	statement_node,
+	statement_list_node, 
+	node_type_count
+};
+
+static const char* node_spelling[node_type_count] = {
+	"null_node", 
+	"name_node", 
+	"identifier_node",
+	"number_node",
+	"sum_node", 
+	"product_node", 
+	"subtraction_node",
+	"division_node",
+	"remainder_node",
+	"load_node",
+	"at_node",
+	"do_node",
+	"define_node",
+	"assignment_node",
+	"store_node",
+	"expression_node", 
+	"if_node",
+	"repeat_node",
+	"statement_node",
+	"statement_list_node", 
+};
 
 struct token {
 	nat type;
@@ -32,8 +126,25 @@ struct node {
 	nat* children;
 };
 
+
+static const nat error = (nat) -1;
+
 static nat text_length = 0;
 static char* text = NULL;
+
+static struct token* tokens = NULL;
+static nat token_count = 0;
+
+static nat max_at = 0;
+static nat node_count = 0;
+static struct node nodes[65536] = {0};
+static nat pointers[65536] = {0};
+static nat* heap = pointers;
+
+
+static bool is_delimiter(char c) { 
+	return isspace(c) or strchr(operators, c);
+}
 
 static char* load_file(const char* filename, nat* length) {
 	int file = open(filename, O_RDONLY);
@@ -45,10 +156,26 @@ static char* load_file(const char* filename, nat* length) {
 	}
 	*length = (nat) lseek(file, 0, SEEK_END);
 	lseek(file, 0, SEEK_SET);
-	char* s = calloc(*length + 2, 1);
+	char* s = calloc(*length + 1, 1);
 	read(file, s, *length);
 	close(file);
 	return s;
+}
+
+static void print_tokens(void) {	
+	printf("printing all tokens: (%llu tokens): {\n\n", token_count);
+	for (nat i = 0; i < token_count; i++) {
+		printf("#%llu: @%-6llu: token(.type = %-20s ",
+			i, tokens[i].location, 
+			token_spelling[tokens[i].type]
+		);
+		if (tokens[i].type == name_token) 
+			printf(".name = \"%s\" ", tokens[i].name);
+		if (tokens[i].type == number_token) 
+			printf(".value = %llu ", tokens[i].value);
+		puts("\n");
+	}
+	puts("}");
 }
 
 static void print_nats(nat* array, nat count) {
@@ -57,6 +184,34 @@ static void print_nats(nat* array, nat count) {
 		printf("%lld ", array[i]);
 	}
 	printf("}");
+}
+
+
+static void print_nodes(void) {
+	puts("nodes:");
+	for (nat i = 0; i < node_count; i++) {
+		printf("#%llu: node[.type=%s, .begin = %llu, .end = %llu, .count=%llu, .children = {",
+			i, node_spelling[nodes[i].type], 
+			nodes[i].begin,
+			nodes[i].end,
+			nodes[i].count
+		);
+		print_nats(nodes[i].children, nodes[i].count);
+		puts("} ];");
+	}
+	puts("");
+}
+
+
+
+static void print_syntax_tree(nat this, nat depth) {
+	for (nat i = 0; i < depth; i++) printf(".\t");
+	printf("node[.type=%s, .count=%llu]\n\n",
+		node_spelling[nodes[this].type], 
+		nodes[this].count
+	);
+	for (nat i = 0; i < nodes[this].count; i++) 
+		print_syntax_tree(nodes[this].children[i], depth + 1);
 }
 
 static void print_string_index(nat given_index) {
@@ -86,253 +241,7 @@ static void print_string_index(nat given_index) {
 }
 
 
-enum {
-	null_ins,
-	set_ins,
-	del_ins,
-	do_ins,
-	at_ins,
-	eoi_ins,
-
-	add_op, // + a b
-	sub_op, // - a b
-	mul_op, // * a b
-	div_op, // / a b
-	
-};
-
-
-
-
-
-int main(int argc, const char** argv) {
-
-	if (argc != 2) return puts("compiler frontend: error: no input file given");
-	text = load_file(argv[1], &text_length);
-	text[text_length++] = '\n';	
-	nat state_stack[4096] = {0};
-	nat progress_stack[4096] = {0};
-	nat nodes[4096] = {0};
-	nat node_count = 0;
-	bool in_expression = false;
-	{nat i = 0;
-	while (i < text_length and isspace(text[i])) i++;
-	while (i < text_length) {
-
-		if (not in_expression) {
-
-			if (
-				text[i + 0] == 's' and 
-				text[i + 1] == 'e' and 
-				text[i + 2] == 't' and 
-				isspace(text[i + 3])
-			) {
-				puts("found a set instruction!");
-				i += 3; while (i < text_length and isspace(text[i])) i++;
-				nodes[node_count++] = set_ins;
-			parse_name:;
-				const nat begin = i;
-				while (i < text_length and not isspace(text[i])) i++;
-				nodes[node_count++] = begin;
-				while (i < text_length and isspace(text[i])) i++;
-				if (text[i] != '=') {
-					puts("expected '=' in set statement: "); goto error; 
-				} 
-				i++;
-				
-
-			} else if (
-				text[i + 0] == 'd' and 
-				text[i + 1] == 'e' and 
-				text[i + 2] == 'l' and
-				isspace(text[i + 3])
-			) {
-				puts("found a del instruction!");
-				i += 4; while (i < text_length and isspace(text[i])) i++;
-				nodes[node_count++] = del_ins;
-				goto parse_name;
-
-			} else if (
-				text[i + 0] == 'd' and 
-				text[i + 1] == 'o' and 
-				isspace(text[i + 2])
-			) {
-				puts("found a do instruction!");
-				i += 3; while (i < text_length and isspace(text[i])) i++;
-				nodes[node_count++] = do_ins;
-				goto parse_name;
-
-			} else if (
-				text[i + 0] == 'a' and 
-				text[i + 1] == 't' and 
-				isspace(text[i + 2])
-			) {
-				puts("found a at instruction!");
-				i += 3; while (i < text_length and isspace(text[i])) i++;
-				nodes[node_count++] = at_ins;
-			parse_name:;
-				const nat begin = i;
-				while (i < text_length and not isspace(text[i])) i++;
-				nodes[node_count++] = begin;
-				while (i < text_length and isspace(text[i])) i++;
-
-			} else if (
-				text[i + 0] == 'e' and 
-				text[i + 1] == 'o' and 
-				text[i + 2] == 'i' and 
-				isspace(text[i + 3])
-			) {
-				puts("found a eoi instruction!");
-				i += 4; while (i < text_length and isspace(text[i])) i++;
-				nodes[node_count++] = eoi_ins;
-				state = expecting_instruction_state;
-				continue;
-
-			} else {
-				error: puts("parse error"); 
-				print_string_index(i);
-				exit(1);
-			}
-
-		} else {// in_expression
-			
-
-			
-
-
-
-
-
-		}
-	}}
-
-
-#define stuff \
-	nat begin = nodes[i + 1], length = 0; \
-	i += 2; \
-	for (nat t = begin; t < text_length and not isspace(text[t]); t++) { \
-		length++; \
-	} 
-	
-	puts("parse success!"); 
-	for (nat i = 0; i < node_count; ) {
-
-		if (nodes[i] == del_ins) {
-			stuff; printf("\tdel <%.*s>\n", (int) length, text + begin);
-
-		} else if (nodes[i] == do_ins) {
-			stuff; printf("\tdo <%.*s>\n", (int) length, text + begin);
-
-		} else if (nodes[i] == at_ins) {
-			stuff; printf("\tat <%.*s>\n", (int) length, text + begin);
-
-		} else if (nodes[i] == eoi_ins) {
-			printf("\teoi\n"); i++;
-		}
-	}
-	exit(0);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//static const nat error = (nat) -1;
-
-/*
-static struct token* tokens = NULL;
-static nat token_count = 0;
-
-static nat max_at = 0;
-static nat node_count = 0;
-static struct node nodes[65536] = {0};
-static nat pointers[65536] = {0};
-static nat* heap = pointers;*/
-
-
-
-/*static void print_tokens(void) {	
-	printf("printing all tokens: (%llu tokens): {\n\n", token_count);
-	for (nat i = 0; i < token_count; i++) {
-		printf("#%llu: @%-6llu: token(.type = %-20s ",
-			i, tokens[i].location, 
-			token_spelling[tokens[i].type]
-		);
-		if (tokens[i].type == name_token) 
-			printf(".name = \"%s\" ", tokens[i].name);
-		if (tokens[i].type == number_token) 
-			printf(".value = %llu ", tokens[i].value);
-		puts("\n");
-	}
-	puts("}");
-
-
-}*/
-
-
-
-
-/*static void print_nodes(void) {
-	puts("nodes:");
-	for (nat i = 0; i < node_count; i++) {
-		printf("#%llu: node[.type=%s, .begin = %llu, .end = %llu, .count=%llu, .children = {",
-			i, node_spelling[nodes[i].type], 
-			nodes[i].begin,
-			nodes[i].end,
-			nodes[i].count
-		);
-		print_nats(nodes[i].children, nodes[i].count);
-		puts("} ];");
-	}
-	puts("");
-}*/
-
-
-/*static void print_syntax_tree(nat this, nat depth) {
-	for (nat i = 0; i < depth; i++) printf(".\t");
-	printf("node[.type=%s, .count=%llu]\n\n",
-		node_spelling[nodes[this].type], 
-		nodes[this].count
-	);
-	for (nat i = 0; i < nodes[this].count; i++) 
-		print_syntax_tree(nodes[this].children[i], depth + 1);
-}*/
-
-
-
-
-
-/* static void print_token_position(nat at) {
+static void print_token_position(nat at) {
 
 	puts("token position:");
 	for (nat i = 0; i < token_count; i++) {
@@ -343,162 +252,12 @@ static nat* heap = pointers;*/
 
 	}
 	puts("\n");
-}*/
-
-
-	/*const char actual_dictionary[] =
-		"ifEthenSelseSend\n"
-		"repeatSwhileE\n"
-		"defineN=E\n"
-		"set@(E)=E\n"
-		"set@N=E\n"
-		"setN=E\n"
-		"delN\n"
-		"doN\n"
-		"atN\n"
-		"eoi\n"
-	;
-
-	const char simple_dictionary[] =
-		//"ifEthenSelseSend\n"
-		//"repeatSwhileE\n"
-		"delN\n" // 1
-		"doN\n" // 2
-		"atN\n" // 3
-		"eoi\n" // 4
-	;
-
-	const char* dictionary = simple_dictionary;
-	const nat dictionary_length = (nat) strlen(simple_dictionary);
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-				//printf("info : name goes from: %llu to %llu\n", begin, end);
-				/*print_string_index(begin); puts("");
-				print_string_index(end); puts("");*/
-
-
-
-
-
-/*
-first attempt 1202510127.020741
-
-loop:;
-	if (at == dictionary_length) goto error;
-	if (dictionary[at] == '\n') 
-	if (dictionary[at] != text[index]) goto mismatch;
-	index++;
-	at++;
-	goto loop;
-mismatch:
-	while (dictionary[at] != 10) at++;
-*/
-
-
-
-
-
-
-
-
-
-/*
-		if (text[i] == '[') {
-			bool comment = 1;
-			while (comment and i < text_length) {
-				if (text[i] == '[') comment++;
-				if (text[i] == ']') comment--;
-				i++;
-			}
-			if (comment) printf("error: unterminated comment\n");
-			continue;
-		}
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*	
+}
+
+int main(int argc, const char** argv) {
+	if (argc != 2) return puts("compiler frontend: error: no input file given");
+	text = load_file(argv[1], &text_length);
+	
 	for (nat i = 0; i < text_length; ) {
 		if (text[i] == '[') {
 			bool comment = 1;
@@ -656,7 +415,7 @@ mismatch:
 
 
 
-*/
+
 
 
 

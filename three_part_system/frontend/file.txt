@@ -1,0 +1,4 @@
+
+at loop
+	do loop del loop
+eoi
