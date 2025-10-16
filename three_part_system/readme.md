@@ -204,6 +204,9 @@ eoi
 (a program to compute the number of prime numbers 
  less than a given number, limit.)
 
+define limit = 100000  (you'd set this to a value of your choice)
+define count = 0       (and the result ends up here!)
+
 define i = 0
 repeat
 	define j = 2
@@ -212,12 +215,12 @@ repeat
 		define r = % i j
 		if = r 0 then do composite end del r
 		set j = + j 1 del j
-		do innerloop 		
+		do innerloop del innerloop
 at prime 
 	set count = + count 1
 at composite
 	set i = + i 1
-	while < i limit
+	while < i limit del i
 
 eoi
 ```
