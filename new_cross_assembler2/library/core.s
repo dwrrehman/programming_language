@@ -13,7 +13,7 @@ zero allones sub allones 1 set -1 allones
 
 zero c0 zero c1
 zero c2 zero c3
-zero c3 zero c5
+zero c4 zero c5
 zero c6 zero c7
 
 
@@ -72,10 +72,10 @@ set r_jalr_op2		000
 set r_branch		1100_011
 set r_beq		000
 set r_bne		100
-set r_bltu		011
-set r_bgeu		111
-set r_blt		001
-set r_bge		101
+set r_blt		011
+set r_bge		111
+set r_blts		001
+set r_bges		101
 
 set r_load 		1100_000
 set r_lb 		000

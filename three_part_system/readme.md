@@ -168,7 +168,7 @@ define i = 0
 repeat
 	(...do something with i here...)
 	set i = + i 1
-	while < i 15
+	while < i 16
 eoi
 ```
 
