@@ -1,0 +1,216 @@
+// the backend for the compiler!
+// written on 1202508251.142842 by dwrr
+
+/*
+
+language ISA as of: 1202508251.143137
+
+	set r r
+	add r r
+	sub r r
+	mul r r
+	div r r
+	rem r r
+	and r r
+	or r r
+	eor r r 
+	si r r 
+	sd r r 
+	
+	li r k
+	la r l
+
+	lt r r l
+	ge r r l
+	ne r r l
+	eq r r l	
+	at l
+	do l
+	sc
+	halt
+	
+	ldb r r
+	ldh r r
+	ldw r r
+	ldd r r
+	stb r r
+	sth r r
+	stw r r
+	std r r
+
+	reg r k
+
+	emit k
+	sect k
+
+	def r
+	del r
+	
+	target k
+	format k 
+	stacksize k 
+	overwrite
+
+
+
+
+
+
+
+
+
+
+
+
+	set, 
+
+	add, sub, mul, div_, rem, 
+
+	and_, or_, eor, si, sd, 
+
+	li, la, 
+
+	ldb, ldh, ldw, ldd, 
+
+	stb, sth, stw, std,
+
+	lt, ge, ne, eq, 
+
+	at, do_, 
+
+	sect, 
+
+	reg,
+
+	emit, 
+	sc, 
+	
+	halt, 
+	eoi,
+
+	def, del, 
+
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+/*static nat* compute_arm64_successors(nat pc) {
+
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+
+
+		if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == a6_cbz or op == a6_tbz or 
+			(op == a6_bc and ins[i].args[0] != 14 and ins[i].args[0] != 15)
+		) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[1]];
+
+		} else if ((op == a6_bc and (ins[i].args[0] == 14 or ins[i].args[0] == 15)) or 
+			op == a6_jmp
+		) {
+			gotos[2 * i + 0] = locations[ins[i].args[1]];
+			gotos[2 * i + 1] = (nat) -1;
+
+
+		} else if (	
+			op == a6_divr
+		) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			puts("error: compute_arm64_successors(): found a non A6 MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
+	}
+
+	nat* result = calloc(2, sizeof(nat));
+	if (pc < ins_count) result[0] = gotos[2 * pc + 0];
+	if (pc < ins_count) result[1] = gotos[2 * pc + 1];
+	free(gotos);
+	return result;
+}
+
+static nat* compute_arm64_predecessors(nat pc, nat* pred_count) {
+
+	return NULL;
+}
+
+static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0}; // var_count sized
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == m4_br and ins[i].args[0] != 7) { // cond br
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+
+		} else if (op == m4_br and ins[i].args[0] == 7) { // uncond jump
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == adr or op == m4_op or op == at or op == emit) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			puts("error: compute_successors(): found a non RV MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
+	}
+	nat* result = NULL;
+	nat count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (gotos[2 * i + 0] == pc or gotos[2 * i + 1] == pc) {
+			result = realloc(result, sizeof(nat) * (count + 1));
+			result[count++] = i;
+		}
+	}
+
+	free(gotos);
+	*pred_count = count;
+	return result;
+}
+
+*/
+
+
+
+
+
+

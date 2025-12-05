@@ -85,14 +85,14 @@ at arm64
 	eq 0 0 ra del ra lt 0 0 arm64
 
 
-at allocate_16m6_stack_memory
+at allocate_16mb_stack_memory
 	ld ra 0
 	set c0 ra function_begin
 	addi a6_sp a6_sp 0000_0000_0001 1 0 1
 	addi a6_sp a6_sp 0000_0000_0001 1 0 1
 	function_end
 	eq 0 0 ra del ra 
-	lt 0 0 allocate_16m6_stack_memory
+	lt 0 0 allocate_16mb_stack_memory
 
 
 at ctabort

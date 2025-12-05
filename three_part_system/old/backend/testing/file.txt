@@ -1,0 +1,24 @@
+def a li a 001
+def b set b a add b a
+del a del b
+
+def 1 li 1 1
+def 0 li 0 0
+
+def i set i 0
+def a set a 0
+def limit li limit 0101
+
+def loop 
+at loop
+	add a i
+	add i 1
+	lt i limit loop
+	halt
+
+
+eoi
+
+testing out the parser for the backend!
+	written on 1202508251.161711 by dwrr
+

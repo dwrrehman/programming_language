@@ -1,4 +1,106 @@
-// compiler backend, sipmlified on 1202512044.181839
+// the backend for the compiler!
+// written on 1202508251.142842 by dwrr
+
+/*
+
+language ISA as of: 1202508251.143137
+
+	set r r
+	add r r
+	sub r r
+	mul r r
+	div r r
+	rem r r
+	and r r
+	or r r
+	eor r r 
+	si r r 
+	sd r r 
+	
+	li r k
+	la r l
+
+	lt r r l
+	ge r r l
+	ne r r l
+	eq r r l	
+	at l
+	do l
+	sc
+	halt
+	
+	ldb r r
+	ldh r r
+	ldw r r
+	ldd r r
+	stb r r
+	sth r r
+	stw r r
+	std r r
+
+	reg r k
+
+	emit k
+	sect k
+
+	def r
+	del r
+	
+	target k
+	format k 
+	stacksize k 
+	overwrite
+
+
+
+
+
+
+
+
+
+
+
+
+	set, 
+
+	add, sub, mul, div_, rem, 
+
+	and_, or_, eor, si, sd, 
+
+	li, la, 
+
+	ldb, ldh, ldw, ldd, 
+
+	stb, sth, stw, std,
+
+	lt, ge, ne, eq, 
+
+	at, do_, 
+
+	sect, 
+
+	reg,
+
+	emit, 
+	sc, 
+	
+	halt, 
+	eoi,
+
+	def, del, 
+
+
+
+
+
+
+
+
+
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,12 +269,7 @@ static void print_instruction(struct instruction this) {
 	for (nat a = 0; a < arity[this.op]; a++) {
 		char string[4096] = {0};
 		if (this.imm & (1 << a)) snprintf(string, sizeof string, "0x%llx(%lld)", this.args[a], this.args[a]);
-		else if (this.args[a] < var_count) 
-			snprintf(string, sizeof string, 
-			"%s\033[38;5;235m(%llu)\033[0m", 
-			variables[this.args[a]], 
-			this.args[a]
-		);
+		else if (this.args[a] < var_count) snprintf(string, sizeof string, "%s\033[38;5;235m(%llu)\033[0m", variables[this.args[a]], this.args[a]);
 		else snprintf(string, sizeof string, "(INTERNAL ERROR)");
 
 		printf("%s", string);
@@ -273,15 +370,21 @@ static nat compute_successors(const nat pc, nat* true_side) {
 	nat locations[4096] = {0};
 	for (nat i = 0; i < ins_count; i++) 
 		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+
 	nat f = unreachable, t = unreachable;
 	nat i = pc;
+
 	const nat op = ins[i].op;
 	if (op == halt) {} 
 	else if (op == lt or op == ge or op == ne or op == eq)
 		{ f = i + 1; t = locations[ins[i].args[2]]; } 	
 	else if (op == do_) f = locations[ins[i].args[0]];
+
+
 	else if (op == b_type) f = locations[ins[i].args[3]];
-	else if (op == j_type) f = locations[ins[i].args[1]];	
+	else if (op == j_type) f = locations[ins[i].args[1]];
+
+	
 	else f = i + 1;
 	*true_side = t;
 	return f;
@@ -308,6 +411,108 @@ static nat* compute_predecessors(nat pc, nat* pred_count) {
 	*pred_count = count;
 	return result;
 }
+
+/*static nat* compute_arm64_successors(nat pc) {
+
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0};
+
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+
+
+		if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == a6_cbz or op == a6_tbz or 
+			(op == a6_bc and ins[i].args[0] != 14 and ins[i].args[0] != 15)
+		) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[1]];
+
+		} else if ((op == a6_bc and (ins[i].args[0] == 14 or ins[i].args[0] == 15)) or 
+			op == a6_jmp
+		) {
+			gotos[2 * i + 0] = locations[ins[i].args[1]];
+			gotos[2 * i + 1] = (nat) -1;
+
+
+		} else if (	
+			op == a6_divr
+		) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			puts("error: compute_arm64_successors(): found a non A6 MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
+	}
+
+	nat* result = calloc(2, sizeof(nat));
+	if (pc < ins_count) result[0] = gotos[2 * pc + 0];
+	if (pc < ins_count) result[1] = gotos[2 * pc + 1];
+	free(gotos);
+	return result;
+}
+
+static nat* compute_arm64_predecessors(nat pc, nat* pred_count) {
+
+	return NULL;
+}
+
+static nat* compute_msp430_predecessors(nat pc, nat* pred_count) {
+	nat* gotos = calloc(2 * ins_count, sizeof(nat)); 
+	nat locations[4096] = {0}; // var_count sized
+	for (nat i = 0; i < ins_count; i++) {
+		if (ins[i].op == at) locations[ins[i].args[0]] = i;
+	}
+	for (nat i = 0; i < ins_count; i++) {
+		const nat op = ins[i].op;
+		if (op == halt) {
+			gotos[2 * i + 0] = (nat) -1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == m4_br and ins[i].args[0] != 7) { // cond br
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = locations[ins[i].args[2]];
+
+		} else if (op == m4_br and ins[i].args[0] == 7) { // uncond jump
+			gotos[2 * i + 0] = locations[ins[i].args[0]];
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else if (op == adr or op == m4_op or op == at or op == emit) {
+			gotos[2 * i + 0] = i + 1;
+			gotos[2 * i + 1] = (nat) -1;
+
+		} else {
+			puts("error: compute_successors(): found a non RV MI...\n");
+			print_instruction(ins[i]);
+			abort();
+		} 
+	}
+	nat* result = NULL;
+	nat count = 0;
+	for (nat i = 0; i < ins_count; i++) {
+		if (gotos[2 * i + 0] == pc or gotos[2 * i + 1] == pc) {
+			result = realloc(result, sizeof(nat) * (count + 1));
+			result[count++] = i;
+		}
+	}
+
+	free(gotos);
+	*pred_count = count;
+	return result;
+}
+
+*/
+
 
 static nat locate_instruction(struct expected_instruction expected, nat starting_from) {
 
@@ -361,6 +566,7 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 	return unreachable;
 }
 
+
 static void dump_hex(uint8_t* memory, nat count) {
 	puts("second debug output:    debugging executable bytes:\n");
 	for (nat i = 0; i < count; i++) {
@@ -382,12 +588,16 @@ static void debug_data_flow_state(
 ) {
 
 	print_instruction_window_around(pc, 0, "PC");
+	//print_dictionary(0);
+
 	printf("  "); 
 	for (nat j = 0; j < var_count; j++) { 
 		if (is_label[j]) continue; 
 		printf("%3s(%llu) ", variables[j], j); 
 	}
-	puts("");	
+	puts("");
+
+	
 	for (nat i = 0; i < ins_count; i++) {
 		printf("ct %3llu: ", i);
 		for (nat j = 0; j < var_count; j++) {
@@ -405,17 +615,22 @@ static void debug_data_flow_state(
 			printf("%3lld ", copy_of[i * var_count + j]);
 			if (not is_copy[i * var_count + j]) printf("\033[0m");
 		}
-		print_instruction(ins[i]);		
+
+
+		print_instruction(ins[i]);
+		
 		if (i == pc) { 
 			putchar(32); 
 			print_nats(preds, pred_count); 
 			putchar(32); 
 			printf("\033[32;1m     <------- PC\033[0m"); } 
 		putchar(10);
+
 		//printf("\033[38;5;235m");
 		//for (nat _ = 0; _ < 350; _++) printf("-");
 		//printf("\033[0m");
 		//putchar(10);
+
 	}
 	puts("-------------------------------------------------");
 	printf("[PC = %llu], pred:", pc);
@@ -468,6 +683,7 @@ static void debug_liveness(
 	print_nats(stack, stack_count); putchar(10);
 }
 
+
 noreturn static void print_error(
 	const char* message, 
 	const char* filename, 
@@ -478,6 +694,7 @@ noreturn static void print_error(
 	print_index(text, length, begin, end);
 	abort();
 }
+
 
 int main(int argc, const char** argv) {
 	if (argc != 2) exit(puts("compiler backend: error: exactly one source file must be supplied"));
@@ -577,7 +794,11 @@ int main(int argc, const char** argv) {
 	}
 
 
+
 /*
+
+
+
 
 	{ nat* type = calloc(ins_count * var_count, sizeof(nat));
 	nat* value = calloc(ins_count * var_count, sizeof(nat));
@@ -588,9 +809,16 @@ int main(int argc, const char** argv) {
 	nat stack[4096] = {0};
 	nat stack_count = traversal_count;
 
+
+
+
+
 	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;          
 
-		//we are missing side information in the state!!!!!!!!!!!!!! 1202508251.181443 
+
+			//we are missing side information in the state!!!!!!!!!!!!!! 1202508251.181443 
+
+
 
 	while (stack_count) {
 		nat pc = stack[--stack_count];
@@ -778,6 +1006,7 @@ int main(int argc, const char** argv) {
 		getchar();
 	}
 
+
 	for (nat i = 0; i < ins_count; i++) {
 
 		if (debug) {
@@ -873,6 +1102,8 @@ int main(int argc, const char** argv) {
 			puts("");
 			getchar();
 		}
+
+
 
 		for (nat a = 0; a < arity[ins[i].op]; a++) {
 
@@ -1004,6 +1235,8 @@ int main(int argc, const char** argv) {
 				ins[i].imm |= 4;
 			}
 
+
+
 		} else if (op == lt or op == ge or op == ne or op == eq) {
 			const nat ct0 = (imm & 1) or type[i * var_count + ins[i].args[0]];
 			const nat ct1 = (imm & 2) or type[i * var_count + ins[i].args[1]];
@@ -1047,6 +1280,13 @@ int main(int argc, const char** argv) {
 
 
 */
+
+
+
+
+
+
+
 
 
 

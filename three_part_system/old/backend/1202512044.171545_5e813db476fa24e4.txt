@@ -1,0 +1,18 @@
+def return
+def a 
+def b
+def s
+
+li a 001
+set b a
+add b a
+
+ge a b s
+	sub b a
+at s
+
+reg return 0
+set return b
+
+eoi
+

@@ -1,0 +1,44 @@
+
+target 1
+format 1
+
+def 0 li 0 0 
+def 1 li 1 1
+def 2 li 2 01
+
+def tally set tally 0
+
+def count li count 000001
+def i set i 0
+
+def loop def inner 
+def prime def composite
+
+at loop
+	def j set j 2
+	at inner
+		ge j i prime
+
+		def remainder 
+			set remainder i 
+			rem remainder j 
+			eq remainder 0 composite 
+		del remainder
+
+		add j 1 del j
+		do inner
+	at prime add tally 1
+	at composite
+	add i 1
+	lt i count loop
+
+
+
+eoi
+
+a prime number program to test the parser and constprop stage!
+	written on 1202508251.161657 by dwrr
+
+
+
+
