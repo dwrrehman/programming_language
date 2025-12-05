@@ -1,4 +1,10 @@
 
 at loop
-	do loop del loop
+do loop 
+del loop
+else 
+repeat
+emit 12
+emit 14
+emit 16
 eoi

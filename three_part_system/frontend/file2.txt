@@ -1,0 +1,6 @@
+
+define x = 0
+set x = + x 1
+define y = 5
+define a = + + * x x * y y 4
+eoi
