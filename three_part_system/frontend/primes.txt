@@ -5,9 +5,9 @@ define i = 0
 repeat
 	define j = 2
 	at innerloop
-		if < j i then else do prime end
+		if < j i else do prime end
 		define r = % i j
-		if = r 0 then do composite end del r
+		if = r 0 do composite end del r
 		set j = + j 1 del j
 		do innerloop del innerloop
 at prime 

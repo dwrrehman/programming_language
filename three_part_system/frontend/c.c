@@ -70,6 +70,7 @@ struct statement {
 	nat type;
 	char* name;
 	nat value;
+	nat reg;
 	nat left;
 	nat right;
 };
@@ -86,7 +87,7 @@ enum statement_type {
 	else_,
 	end_,
 	repeat_,
-	ifthen_,
+	if_,
 	while_,	
 	name_,
 	number_,
@@ -117,7 +118,7 @@ static char* statement_spelling[statement_type_count] = {
 	"else",
 	"end",
 	"repeat",
-	"ifthen",
+	"if",
 	"while",
 	"name",
 	"number",
@@ -153,31 +154,29 @@ static bool is_looking_at(const char* recognize, const nat at) {
 static void print_program(struct statement* program, nat program_count) {
 	puts("printing the program:");
 	for (nat i = 0; i < program_count; i++) {
-		printf("%5llu: statement "
-			"{ .type = %s, .name = \"%s\", "
-			".value = %llu, .left = %llu, .right = %llu }\n", 
-			i, 
-			statement_spelling[program[i].type],
-			program[i].name, program[i].value, program[i].left, program[i].right
-		);
+		printf("%5llu:     ", i);
+		printf("\033[32;1m%10s\033[0m   ", statement_spelling[program[i].type]);
+
+		if (program[i].value) printf("   \033[31m%5llu\033[0m  ", program[i].value);
+		else if (program[i].name) printf("   \"%s\"  ", program[i].name);
+		printf("                ");
+		if (program[i].left) printf("      .l=%llu ", program[i].left);
+		if (program[i].right) printf("      .r=%llu ", program[i].right);
+
+		puts("");
 	}
 }
 
 int main(int argc, const char** argv) {
-
 	if (argc != 2) return puts("compiler frontend: error: no input file given");
-
 	text = load_file(argv[1], &text_length);
 	text[text_length++] = '\n';
-
 	struct statement program[4096] = {0};
-	nat program_count = 0, at = 0;
-
+	nat program_count = 0; 
+	{ nat at = 0;
 #define skipspace   while (at < text_length and isspace(text[at])) at++;
-
 	skipspace;
 	while (at < text_length) {
-
 		if (text[at] == '(') {
 			bool comment = 1;
 			while (comment and at < text_length) {
@@ -189,18 +188,6 @@ int main(int argc, const char** argv) {
 			skipspace;
 			continue;
 		}
-
-		if (is_looking_at("del", at)) {
-			at += 4; skipspace;
-			program[program_count++].type = del_;
-			parsename:; const nat begin = at;
-			while (at < text_length and not isspace(text[at])) at++;
-			program[program_count - 1].name = strndup(text + begin, at - begin);
-			skipspace;
-			continue;
-		}
-
-
 		if (is_looking_at("emit", at)) {
 			at += 5; skipspace;
 			program[program_count++].type = emit_;
@@ -218,35 +205,62 @@ int main(int argc, const char** argv) {
 			program[program_count++].type = at_;
 			goto parsename;
 		} 
-
 		if (is_looking_at("eoi", at)) {
 			at += 4; skipspace
 			program[program_count++].type = eoi_;
 			continue;
 		}
-
 		if (is_looking_at("end", at)) {
 			at += 4; skipspace
-			program[program_count++].type = eoi_;
+			program[program_count++].type = end_;
 			continue;
 		}
-
 		if (is_looking_at("else", at)) {
 			at += 5; skipspace
-			program[program_count++].type = eoi_;
+			program[program_count++].type = else_;
 			continue;
 		}
-
 		if (is_looking_at("repeat", at)) {
 			at += 7; skipspace
 			program[program_count++].type = repeat_;
 			continue;
 		}
-
+		if (is_looking_at("set", at)) {
+			at += 4; skipspace;
+			program[program_count++].type = set_;
+			goto parse_name_expression; 
+		}
+		if (is_looking_at("if", at)) {
+			at += 3; skipspace;
+			program[program_count++].type = if_;
+			goto parse_expression;
+		}
+		if (is_looking_at("while", at)) {
+			at += 6; skipspace;
+			program[program_count++].type = while_;
+			goto parse_expression;
+		}		
+		if (is_looking_at("store", at)) {
+			at += 6; skipspace;
+			program[program_count++].type = store_;
+			goto parse_expression;			
+		}
+		if (is_looking_at("del", at)) {
+			at += 4; skipspace;
+			program[program_count++].type = del_;
+		parsename:; 
+			const nat begin = at;
+			while (at < text_length and not isspace(text[at])) at++;
+			program[program_count - 1].name = strndup(text + begin, at - begin);
+			skipspace;
+			continue;
+		}
 		if (is_looking_at("define", at)) {
 			at += 7; skipspace;
 			program[program_count++].type = define_;
-			{ parsenameexpr:; const nat begin = at;
+			
+		parse_name_expression:;
+			{ const nat begin = at;
 			while (at < text_length and not isspace(text[at])) at++;
 			program[program_count - 1].name = strndup(text + begin, at - begin);
 			skipspace;
@@ -254,6 +268,9 @@ int main(int argc, const char** argv) {
 				puts("expected '=' in statement: ");
 				goto error;
 			} at++; skipspace; } 
+
+		parse_expression:;
+			const nat root_of_expression = program_count - 1;
 			{ puts("info: we have to parse the expression now!!! : ");
 			nat stack[4096] = {0};
 			nat arg_count[4096] = {0};
@@ -261,7 +278,7 @@ int main(int argc, const char** argv) {
 			stack[0] = program_count - 1;
 			arg_count[0] = 1;
 
-		el:
+		parse_next_expr_symbol:
 			if (at >= text_length) goto done_expression;
 			if (not stack_count) goto done_expression;
 
@@ -271,9 +288,9 @@ int main(int argc, const char** argv) {
 			print_program(program, program_count);
 			//getchar();
 
-			if (arg_count[stack_count - 1] == 2) program[stack[stack_count - 1]].right = program_count;
-			else if (arg_count[stack_count - 1] == 1) program[stack[stack_count - 1]].left = program_count;
-			else if (arg_count[stack_count - 1] == 0) { stack_count--; goto el; } 
+			if (arg_count[stack_count - 1] == 2) program[stack[stack_count - 1]].left = program_count;
+			else if (arg_count[stack_count - 1] == 1) program[stack[stack_count - 1]].right = program_count;
+			else if (arg_count[stack_count - 1] == 0) { stack_count--; goto parse_next_expr_symbol; } 
 			arg_count[stack_count - 1]--;
 
 			if (text[at] == '+') {
@@ -307,37 +324,250 @@ int main(int argc, const char** argv) {
 				program[program_count++].type = name_;
 				program[program_count - 1].name = strndup(text + begin, at - begin);
 				skipspace;
-			} goto el; }
+			} goto parse_next_expr_symbol; }
+
 		done_expression:;
 			puts("done parsing expression.");
 			puts("COMPLETED RECURSIVE DESCENT");
 			printf("completed expression tree:");
 			print_program(program, program_count);
+
+			if (program[root_of_expression].type == store_) goto parse_name_expression;
 			continue;
-		}
-		if (is_looking_at("set", at)) {
-			at += 4; skipspace;
-			program[program_count++].type = set_;
-			goto parsenameexpr; 
-		}
+		}		
 	error: 
 		puts("parse error"); 
 		print_string_index(at);
 		exit(1);
-	}
+	}}
 
 	for (nat i = 0; i < program_count; i++) {
 		const nat op = program[i].type;
-		if (op == emit_ or op == number_) {
-			program[i].value = (nat) atoi(program[i].name);
-
-		} else {
-
-		}
+		if (op == emit_ or op == number_) program[i].value = (nat) atoi(program[i].name);
+		if (op == name_ or op == number_) program[i].reg = i;
 	}
 
 	puts("\n\n\n\n\n");
 	print_program(program, program_count);
+
+	bool is_undefined[4096] = {0};
+	char* variables[4096] = {0};
+	nat var_count = 0;
+	const nat max = 16384;
+	nat length = 0;
+	char* output = calloc(max, 1);
+	nat if_stack[4096] = {0}; 
+	nat if_stack_count = 0;
+	nat while_stack[4096] = {0}; 
+	nat while_stack_count = 0;
+	
+	length += (nat) snprintf(output + length, max, 
+		"(intermediate representation file generated by the compiler frontend.)\n"
+		"\n\tli 0 0\n\tli 1 1\n\n"
+	);
+
+	for (nat at = 0; at < program_count; at++) {
+		
+		const nat op = program[at].type;
+
+		if (op == eoi_) break;
+
+		if (op == emit_) {
+			length += (nat) snprintf(output + length, max, "\temit %llu\n", program[at].value);
+
+		} else if (op == repeat_) {
+			while_stack[while_stack_count++] = at;
+			length += (nat) snprintf(output + length, max, "\nat .loop%llu\n", at);
+
+		} else if (op == while_) {
+			goto generate_expression;
+			back_to_while:;
+			const nat label = while_stack[--while_stack_count];
+			length += (nat) snprintf(output + length, max, 
+				"\tlt 0 .var%llu .loop%llu\n\tdel .loop%llu\n", 
+				program[program[at].right].reg, label, label
+			);
+
+		} else if (op == if_) {
+			goto generate_expression;
+			back_to_if:;
+			if_stack[if_stack_count++] = at;
+			length += (nat) snprintf(output + length, max, 
+				"\teq 0 .var%llu .else%llu\n", 
+				program[program[at].right].reg, at
+			);
+
+			
+
+		} else if (op == else_) {
+			const nat label = if_stack[if_stack_count - 1];
+			length += (nat) snprintf(output + length, max, 
+				"\tdo .end%llu\n\nat .else%llu\n\tdel .else%llu\n", 
+				label, label, label
+			);
+
+		} else if (op == end_) {
+			const nat label = if_stack[--if_stack_count];
+			length += (nat) snprintf(output + length, max, 
+				"\nat .end%llu\n\tdel .end%llu\n", 
+				label, label
+		);
+			
+		} else if (op == at_) {
+
+			for (nat j = var_count; j--;) {
+				if (not strcmp(variables[j], program[at].name)) {
+					goto found_label;
+				}
+			}
+			variables[var_count++] = program[at].name;
+			found_label:;
+			length += (nat) snprintf(output + length, max, "\nat %s\n", program[at].name);
+
+		} else if (op == do_) {
+
+			for (nat j = var_count; j--;) {
+				if (not strcmp(variables[j], program[at].name)) {
+					goto found_label2;
+				}
+			}
+			variables[var_count++] = program[at].name;
+			found_label2:;
+			length += (nat) snprintf(output + length, max, "\tdo %s\n", program[at].name);
+
+		} else if (op == del_) {
+			length += (nat) snprintf(output + length, max, "\tdel %s\n", program[at].name);
+			for (nat j = var_count; j--;) {
+				if (not strcmp(variables[j], program[at].name)) {
+					is_undefined[j] = 1; goto found;
+				}
+			}
+			printf("fatal error: del: undefined variable used, could not find variable %s\n", program[at].name);
+			abort(); found:;
+
+		} else if (op == set_) {
+			puts("generating set node!");
+			goto generate_expression;
+
+		} else if (op == define_) {
+			puts("generating define node!");
+			variables[var_count++] = program[at].name;
+			length += (nat) snprintf(output + length, max, "\tdef %s\n", program[at].name);
+
+		generate_expression:;
+			nat stack[4096] = {0};
+			nat stack_count = 1, head = program[at].right;
+			stack[0] = head;
+			while (stack_count) {
+				printf("stack: "); print_nats(stack, stack_count);
+				const nat top = stack[stack_count - 1];
+				struct statement this = program[top];
+				bool is_leaf = this.left == head or this.right == head;
+				if (is_leaf or (not this.left and not this.right)) {
+					head = stack[stack_count - 1]; stack_count--; goto here; back:;
+				} else { 
+					if (this.left) stack[stack_count++] = this.left; 
+					if (this.right) stack[stack_count++] = this.right; 
+				}
+				continue; here:;
+				if (this.type == add_) {
+					generate_op: length += (nat) snprintf(output + length, max, 
+						"\t%s "
+						".var%llu "
+						".var%llu\n", 
+						statement_spelling[this.type],
+						program[this.left].reg, 
+						program[this.right].reg
+					);
+					program[top].reg = program[this.left].reg;
+				} 
+				else if (this.type == sub_) goto generate_op;
+				else if (this.type == mul_) goto generate_op;
+				else if (this.type == div_) goto generate_op;
+				else if (this.type == rem_) goto generate_op;
+				else if (this.type == eor_) goto generate_op;
+				else if (this.type == and_) goto generate_op;
+				else if (this.type == or_) goto generate_op;
+				else if (this.type == si_) goto generate_op;
+				else if (this.type == sd_) goto generate_op;
+	
+				else if (this.type == lt_) {
+					printf("found slt node!\n");
+					length += (nat) snprintf(
+						output + length, max, 
+						"\tdef .t\n"
+						"\tdef .slt\n"
+						"\tset .t 1\n"
+						"\tlt .var%llu .var%llu .slt\n"
+						"\tset .t 0\n"
+						"\tat .slt\n"
+						"\tdel .slt\n"
+						"\tset .var%llu .t\n"
+						"\tdel .t\n", 
+						program[this.left].reg, 
+						program[this.right].reg, 
+						program[this.left].reg
+					);
+					program[top].reg = program[this.left].reg;
+				
+
+				} else if (this.type == eq_) {
+					printf("found seq node!\n");
+					length += (nat) snprintf(
+						output + length, max, 
+						"\tdef .t\n"
+						"\tdef .seq\n"
+						"\tset .t 1\n"
+						"\teq .var%llu .var%llu .seq\n"
+						"\tset .t 0\n"
+						"\tat .seq\n"
+						"\tdel .seq\n"
+						"\tset .var%llu .t\n"
+						"\tdel .t\n", 
+						program[this.left].reg, 
+						program[this.right].reg, 
+						program[this.left].reg
+					);
+					program[top].reg = program[this.left].reg;
+
+				} else if (this.type == number_) {
+					printf("found a NUMBER!!!!   --->    %llu   \n", this.value);
+					this.reg = top;
+					length += (nat) snprintf(output + length, max, "\tdef .var%llu \tli .var%llu %llu\n", top, top, this.value);
+				} else if (this.type == name_) {
+					printf("found a NAME!!!!   --->    %s   \n", this.name);
+					this.reg = top;
+					length += (nat) snprintf(output + length, max, "\tdef .var%llu \tset .var%llu %s\n", top, top, this.name);
+
+				} else {
+					printf("generating expression: error: found a node of type:  %s\n", statement_spelling[this.type]);
+					abort();
+				}
+
+				goto back;
+			}
+
+			if (op == while_) goto back_to_while;
+			else if (op == if_) goto back_to_if;
+			else if (op == define_ or op == set_) {}
+			else {
+				printf("unknown return point, after parsing expression: %s\n", statement_spelling[op]);
+				abort();
+			}
+
+			length += (nat) snprintf(output + length, max, "\tset %s .var%llu\n", program[at].name, program[program[at].right].reg);
+		}
+		
+	}
+
+
+
+	printf("output:\n");
+	puts("------------------------------------------------------------------");
+	puts("");
+	puts(output);
+	puts("");
+
 }
 
 
@@ -401,6 +631,17 @@ int main(int argc, const char** argv) {
 
 
 /*
+
+//length += (nat) snprintf(output + length, max, "\tli .var%llu %llu\n", top, this.value);
+
+		//set d 1
+		//def skip lt r s skip
+		//set d 0
+		//at skip del skip
+
+
+
+
 
 
 
@@ -480,15 +721,26 @@ int main(int argc, const char** argv) {
 
 
 
+/*
+
+
+	slt d r s
+
+-------------------------
+
+translates to :
 
 
 
+set d s 
+lt skip 
+set d r 
+at skip 
+del skip
 
 
 
-
-
-
+*/
 
 
 
