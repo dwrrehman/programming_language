@@ -18,7 +18,7 @@ Keeping the language simple, there are only very few grammatically valid stateme
 
 - `define N = E` : defining a new register variable in the global scope. `N` must not be defined already.
 
-- `set @E = E` : a store of an expression value to a computed L-value address.
+- `store E = E` : a store of an expression value to a computed L-value address.
 
 - `set N = E` : a simple assignment to a register variable. `N` must be defined already.
 
@@ -257,6 +257,124 @@ my_macro + 4 5 * 8 9 < 3 10
 ```
 
 The semantics of whether arguments are l-values, r-values, or references is still being decided, as this has large consequences on how usable the macro system will be for more abtract use cases, such as macros which are able to define/initialize variables for you, with a single macro call. The basic structure of macros, and their usage is done, however. 
+
+
+
+
+__________________________________________
+
+	   Compiler's Architecture
+__________________________________________
+
+
+The compiler has the following overrall structure:
+
+	1. Compiler Frontend : Handles parsing and IR generation.
+
+	2. Compiler Backend : Handles optimization, 
+		instruction selection, register allocation,
+		and assembly generation.
+
+	3. Assembler : Handles binary machine code generation, 
+		compiletime evaluation, and outputting 
+		the final executable.
+
+
+the seperation of the assembler and compiler backend allows for easier addition of more executable formats, and target architectures, due to the unique design of the assembler.
+
+the seperation of the frontend and backend is a canonical technique used in compilers to allow for multiple possible frontends, all which use the same IR and backend to try to optimize the user's program without knowing exactly the target architecture. 
+
+The structure/grammar of the IR language is the following:
+
+(note, in this listing:
+	"r" is a named virtual register, 
+	"l" is a named label, and 
+	"k" is a decimal numeric constant.
+)
+
+_________________________________________________
+
+	set r r  : assigns the value of the second register into the first register.
+	add r r  : adds the two registers, and stores the result into the first register.
+	sub r r  : computes (first register - second register), and stores the result into the first register.
+	mul r r  : multiplies the two registers, and stores the result into the first register.
+	div r r  : computes (first register / second register), and stores the result into the first register.
+	rem r r  : computes (first register MOD second register), and stores the result into the first register.
+	and r r  : computes (first register AND second register), and stores the result into the first register.
+	or r r   : computes (first register OR second register), and stores the result into the first register.
+	eor r r  : computes (first register XOR second register), and stores the result into the first register.
+	si r r   : shifts up (increasing) the first register by a number of bits denoted by the value of the second register.
+	sd r r   : shifts down (decreasing) the first register by a number of bits denoted by the value of the second register. is unsigned always.
+	
+	li r k   : loads immediate k into register r. 
+	la r l   : loads the pc relative address denoted by label into register r. 
+
+	lt r r l : branch if the first register is less than the second register to label l, otherwise ignore this instruction. 
+	ge r r l : branch if the first register is not less than the second register to label l, otherwise ignore this instruction. 
+	ne r r l : branch if the first register is not equal to the second register to label l, otherwise ignore this instruction. 
+	eq r r l : branch if the first register is equal to the second register to label l, otherwise ignore this instruction. 
+	at l     : attribute the position of the label l to denote the position of the next instruction.
+	do l     : unconditionally branch to label l. 
+	sc       : initiate system call.
+	halt     : mark to the compiler that there is a control flow termination at this point in the CFG.
+	
+	ldb r r  : load byte from memory address given by the second register, and load that byte value into the first register.
+	ldh r r  : load 2-bytes from memory address given by the second register, and load that value into the first register.
+	ldw r r  : load 4-bytes from memory address given by the second register, and load that value into the first register.
+	ldd r r  : load 8-bytes from memory address given by the second register, and load that value into the first register.
+
+	stb r r  : store byte to memory address given by the first register, and use the byte value present in the second register.
+	sth r r  : store 2-bytes to memory address given by the first register, and use the byte value present in the second register.
+	stw r r  : store 4-bytes to memory address given by the first register, and use the byte value present in the second register.
+	std r r  : store 8-bytes to memory address given by the first register, and use the byte value present in the second register.
+
+	reg r k  : mark the register r as being forced to reside in physical hardware register k, always. 
+
+	emit k   : generate the byte k into the final executable at this position. 
+	sect k   : create a new section in the executable, starting at physical address k. used for embedded targets only. 
+
+	def r    : define the label, register, or variable r into the symbol table at this point.
+	del r    : remove the label, register, or variable r from the symbol table at this point.
+	
+	target k : set the target architecture which the compiler should compile to. 
+			0 denotes undefined, 
+			1 denotes RISC-V, 
+			2 denotes MSP430, and 
+			3 denotes ARM64. 
+
+	format k : set the output format which the compiler should use to generate the final executable.
+			0 denotes no output at all,
+			1 denotes a raw binary file, 
+			2 denotes a JS hex array of numbers, 
+			3 denotes C source code,   (unimplemented)
+			4 denotes mach-o executable
+			5 denotes mach-o object file
+			6 denotes elf executable  (unimplemented)
+			7 denotes elf object file (unimplemented)
+			8 denotes ti-txt executable 
+			9 denotes uf2 executable
+			
+	stacksize k  : sets the stacksize for the given executable. useful for macho-o and elf formats only. 
+
+	overwrite    : indicates to the compiler that if the output executable file already exists, 
+			it shall be overwritten with the new version. 
+
+
+
+
+This concludes the IR language of the compiler. 
+
+
+_________________________________________________
+
+
+
+
+
+
+
+
+
 
 
 (end of document.)
