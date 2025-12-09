@@ -22,20 +22,11 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t byte;
 
-static nat debug = 0;
+static nat debug = 1;
 
 #define max_variable_count 	(1 << 14)
 #define max_instruction_count 	(1 << 14)
 #define max_arg_count 		16
-
-enum riscv_encodings {
-	i_type,
-	r_type,
-	b_type,
-	s_type,
-	u_type,
-	j_type,
-};
 
 enum all_architectures { 
 	no_arch,
@@ -69,6 +60,14 @@ enum isa {
 	def, del, 
 
 	target, format, stacksize, overwrite, 
+
+	r5_add, r5_sub, r5_mul, r5_divu, r5_remu,
+	r5_and, r5_or, r5_eor, r5_si, r5_sd, r5_slt, 
+	r5_blt, r5_bge, r5_beq, r5_bne, r5_jal, 
+	r5_addi, r5_andi, r5_ori, r5_eori, 
+	r5_sii, r5_sdi, r5_slti,	
+	r5_lui, r5_auipc, r5_ecall,
+
 	isa_count
 };
 
@@ -86,6 +85,14 @@ static const char* operations[isa_count] = {
 	"def", "del", 
 
 	"target", "format", "stacksize", "overwrite",
+
+	"r5_add", "r5_sub", "r5_mul", "r5_divu", "r5_remu",
+	"r5_and", "r5_or", "r5_eor", "r5_si", "r5_sd", "r5_slt", 
+	"r5_blt", "r5_bge", "r5_beq", "r5_bne", "r5_jal", 	
+	"r5_addi", "r5_andi", "r5_ori", "r5_eori", 
+	"r5_sii", "r5_sdi", "r5_slti",	
+	"r5_lui", "r5_auipc", "r5_ecall",
+	
 };
 
 static const nat arity[isa_count] = {
@@ -100,6 +107,14 @@ static const nat arity[isa_count] = {
 	0, 0, 0, 
 	1, 1, 
 	1, 1, 1, 0,
+
+
+	3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 
+	3, 3, 3, 3, 2, 
+	3, 3, 3, 3, 
+	3, 3, 3,
+	2, 2, 0,
 };
 
 struct instruction {
@@ -277,11 +292,12 @@ static nat compute_successors(const nat pc, nat* true_side) {
 	nat i = pc;
 	const nat op = ins[i].op;
 	if (op == halt) {} 
-	else if (op == lt or op == ge or op == ne or op == eq)
+	else if (op == lt or op == ge or op == ne or op == eq or 
+		op == r5_blt or op == r5_bge or 
+		op == r5_beq or op == r5_bne)
 		{ f = i + 1; t = locations[ins[i].args[2]]; } 	
 	else if (op == do_) f = locations[ins[i].args[0]];
-	else if (op == b_type) f = locations[ins[i].args[3]];
-	else if (op == j_type) f = locations[ins[i].args[1]];	
+	else if (op == r5_jal) f = locations[ins[i].args[1]];
 	else f = i + 1;
 	*true_side = t;
 	return f;
@@ -361,7 +377,7 @@ static nat locate_instruction(struct expected_instruction expected, nat starting
 	return unreachable;
 }
 
-static void dump_hex(uint8_t* memory, nat count) {
+/*static void dump_hex(uint8_t* memory, nat count) {
 	puts("second debug output:    debugging executable bytes:\n");
 	for (nat i = 0; i < count; i++) {
 		if (i % 32 == 0) puts("");
@@ -371,7 +387,7 @@ static void dump_hex(uint8_t* memory, nat count) {
 		if (memory[i]) printf("\033[0m");
 	}
 	puts("\n");
-}
+}*/
 
 static void debug_data_flow_state(
 	nat pc,
@@ -505,27 +521,53 @@ int main(int argc, const char** argv) {
 		} else if (not len) continue;
 		char* word = strndup(text + start, len);
 		if (not op) {
-			for (op = 0; op < isa_count; op++) 
+			if (word[0] == '(') {
+				nat i = start + 1, comment = 1;
+				while (comment and i < length) {
+					if (text[i] == '(') comment++;
+					if (text[i] == ')') comment--;
+					i++;
+				}
+				if (comment) print_error("unterminated comment", filename, text, length, start, pc);
+				pc = i;
+				goto next_word;
+			}
+
+			for (op = 0; op < isa_count; op++)
 				if (not strcmp(word, operations[op])) goto process_op;
 			print_error("nonexistent operation", filename, text, length, start, pc);
 		}
+
 		else if (op == def) goto define_name;
-		else if (arg_count == 1 and (op == li or op == reg)) goto parse_binary_literal;
+		else if (arg_count == 1 and (op == li or op == reg)) goto parse_numeric_literal; 
 		else if (arg_count == 0 and (op == target or op == format 
-		or op == stacksize or op == sect or op == emit)) goto parse_binary_literal;
+			or op == stacksize or op == sect or op == emit)) goto parse_numeric_literal;
+
 		for (var = var_count; var--;)
 			if (not is_undefined[var] and not strcmp(word, variables[var])) goto push_argument;
 		print_error("undefined variable", filename, text, length, start, pc);
-	parse_binary_literal:;
-		nat r = 0, s = 1;
+	parse_numeric_literal:;
+		char* str = word; char* endptr = NULL;
+		nat result = (nat) strtoll(str, &endptr, 10);
+		if (errno == ERANGE) {
+			print_error("numeric literal out of range of 64-bit integer", filename, text, length, start, pc);
+		} else if (endptr == str or *endptr != '\0') {
+			print_error("invalid numeric literal", filename, text, length, start, pc);
+		}
+		var = result;
+		goto push_argument;
+
+		/*nat r = 0, s = 1;
 		for (nat i = 0; i < len; i++) {
 			if (word[i] == '0') s <<= 1;
 			else if (word[i] == '1') { r += s; s <<= 1; }
 			else if (word[i] == '_') continue;
 			else print_error("invalid binary literal", filename, text, length, start, pc);
+
 		}
 		var = r;
-		goto push_argument;
+		goto push_argument;*/
+
 		define_name: var = var_count;
 		variables[var] = word; 
 		var_count++;
@@ -575,6 +617,44 @@ int main(int argc, const char** argv) {
 	} else if (target_arch == arm64_arch and stack_size < min_stack_size) {
 		puts("warning: stack size less than the minimum size for arm64");
 	}
+
+
+
+
+
+
+
+
+
+
+	for (nat i = 0; i < ins_count; i++) {
+		nat pc = i;
+		nat pred_count = 0;
+		nat* preds = compute_predecessors(pc, &pred_count);
+		nat gotos[2] = {0};
+		gotos[0] = compute_successors(pc, gotos + 1);
+		print_instruction(ins[i]);
+		printf("                                  ");	
+		printf("[PC = %llu], pred:", pc);
+		print_nats(preds, pred_count); putchar(32);
+		printf("               suc: "); 
+		print_nats(gotos, 2); putchar(32);		
+		putchar(10);
+	}
+
+
+
+
+
+	puts("\033[32;1m[finished parsing.]\033[0m");
+
+
+
+	getchar();
+
+
+
+
 
 
 /*
@@ -1092,14 +1172,25 @@ int main(int argc, const char** argv) {
 	if (target_arch == riscv_arch) 	goto riscv_instruction_selection;
 	puts("instruction selection: error: unknown target"); abort();
 
+
+
+
+
+
+
+
+
+
+
+
 riscv_instruction_selection:;
 	puts("rv32: instruction selection starting...");
 	{ struct instruction new = {0};
-	const nat unrecognized = (nat) -1;
+	//const nat unrecognized = (nat) -1;
 
 	for (nat i = 0; i < ins_count; i++) {
 
-		if (debug) {
+		if (debug or true) {
 			print_instruction_window_around(i, 0, "");
 			puts("rv32 machine instructions:");
 			for (nat e = 0; e < mi_count; e++) {
@@ -1119,18 +1210,26 @@ riscv_instruction_selection:;
 		}
 
 		const nat op = ins[i].op;
-		const nat imm = ins[i].imm;
+		//const nat imm = ins[i].imm;
 		const nat arg0 = ins[i].args[0];
 		const nat arg1 = ins[i].args[1]; 
 		const nat arg2 = ins[i].args[2]; 
-		const nat i0 = !!(imm & 1);
-		const nat i1 = !!(imm & 2);
+		//const nat i0 = !!(imm & 1);
+		//const nat i1 = !!(imm & 2);
 		//const nat i2 = !!(imm & 4);
 
 		if (op == at or op == emit or op == sect or op == halt) { 
 			new = ins[i]; 
 			goto r5_push_single_mi; 
 		}
+
+
+
+
+
+
+
+	/*
 
 		//   set d m  OP_A d n   -->   OP_B d n m
 		//   set d m  OP_A d k   -->   OP_B d n k
@@ -1247,6 +1346,11 @@ riscv_instruction_selection:;
 		}}
 
 
+
+
+
+
+
 		{
 		nat op_A [] = { lt, ge, ne, eq, };
 		nat op_B1[] = { 6,  7,  1,  0,  };
@@ -1270,12 +1374,18 @@ riscv_instruction_selection:;
 			} 
 		}}
 
+		*/
+
+
+
 		if (op == sc) {
-			new = (struct instruction) { i_type, 0xff, 0,  { 0x73,0,0,0, 0,0,0,0 } };
+			new = (struct instruction) {r5_ecall,0,0,{0}};
 			goto r5_push_single_mi;
 		}
 
-		else if (op == set and not imm and is_label[arg1]) {   
+
+
+		/*else if (op == set and not imm and is_label[arg1]) {   
 
 			// set d l ->   auipc d l[31:12] ;  addi d d l[11:0]
 
@@ -1283,9 +1393,10 @@ riscv_instruction_selection:;
 			mi[mi_count++] = new;
 			new = (struct instruction) { i_type, 0x15, 0, { 0x13, arg0, 0, arg0, arg1, 0x42, 0,0 } };
 			goto r5_push_single_mi;
-		} 
+		}*/
 
-		else if (op == stb or op == sth or op == stw) {
+
+		/*else if (op == stb or op == sth or op == stw) {
 			
 			if (op == stb) {
 				new = (struct instruction) { s_type, 0xf3, 0,   { 0x23, 0x000, arg0, arg1, 0x00000, 0,0,0 } };
@@ -1301,32 +1412,94 @@ riscv_instruction_selection:;
 			}
 
 			goto r5_push_single_mi;
-		}
+		}*/
 
-		else if (op == set and not imm) { // set d n -> addi d n 0 
-			new = (struct instruction) { i_type, 0x15, 0,   { 0x13, arg0, 0, arg1, 0, 0,0,0 } };
+
+		else if (op == lt) {
+			new = (struct instruction) { r5_blt, 0, 0,  { arg0, arg1, arg2 } };
 			goto r5_push_single_mi;
 		}
 
-		else if (op == set and imm and arg1 < 2048) { // set d #k -> addi d zr k
-			new = (struct instruction) { i_type, 0x1D, 0,   { 0x13, arg0, 0, 0, arg1, 0,0,0 } };
+		else if (op == eq) {
+			new = (struct instruction) { r5_beq, 0, 0,  { arg0, arg1, arg2 } };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == add) {
+			new = (struct instruction) { r5_add, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == sub) {
+			new = (struct instruction) { r5_sub, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == mul) {
+			new = (struct instruction) { r5_mul, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == div_) {
+			new = (struct instruction) { r5_divu, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == rem) {
+			new = (struct instruction) { r5_remu, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == and_) {
+			new = (struct instruction) { r5_and, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == or_) {
+			new = (struct instruction) { r5_or, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == eor) {
+			new = (struct instruction) { r5_eor, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == si) {
+			new = (struct instruction) { r5_si, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == sd) {
+			new = (struct instruction) { r5_sd, 0,0, {arg0, arg0, arg1} };
+			goto r5_push_single_mi;
+		}
+
+		
+		else if (op == set) { // set d n -> addi d n 0 
+			new = (struct instruction) { r5_addi, 4,0,{arg0, arg1, 0} };
+			goto r5_push_single_mi;
+		}
+
+		else if (op == li and arg1 < 2048) { // li d #k -> addi d zr k
+			new = (struct instruction) { r5_addi, 4, 0,   {arg0, 0, arg1} };
 			goto r5_push_single_mi;
 		}
 	
-		else if (op == set and imm and arg1 >= 2048 and arg1 < (1LLU << 32LLU)) {
+		else if (op == li and arg1 >= 2048 and arg1 < (1LLU << 32LLU)) {
 
  			const bool bit11_is_set = !!(arg1 & 0x800);
 			const nat U20 = ((((uint32_t) arg1) >> 12) + bit11_is_set) & 0xfffff;
 			const nat U12 = arg1 & 0xfff;
 
-			new = (struct instruction) { u_type, 0x5, 0,  { 0x37, arg0, U20,  0,0,0,0,0 } };
+			new = (struct instruction) { r5_lui, 2,0, {arg0, U20} };
 			if (not U12) goto r5_push_single_mi;
 			mi[mi_count++] = new;
-			new = (struct instruction) { i_type, 0x15, 0,   { 0x13, arg0, 0, arg0, U12, 0,0,0 } };
+			new = (struct instruction) { r5_addi, 4, 0, { arg0, arg0, U12, } };
 			goto r5_push_single_mi;
 		}
 
-		else if ((op == ldb or op == ldh or op == ldw) and is_label[arg1]) {
+		/*else if ((op == ldb or op == ldh or op == ldw) and is_label[arg1]) {
 				  // ld d l N ->   auipc d l[31:12] ;  lwu d d l[11:0]
 			nat n = 0;
 			     if (op == ldb) n = 4;
@@ -1352,10 +1525,10 @@ riscv_instruction_selection:;
 
 			new = (struct instruction) { i_type, 0x15, 0,   { 0x03, arg0, n, arg1, 0x0000,  0,0,0 } };
 			goto r5_push_single_mi;
-		}
+		}*/
 
 		else if (op == do_) {
-			new = (struct instruction) { j_type, 0x7, 0,  { 0x6f, 0, arg0, 0,0,0,0,0 } };
+			new = (struct instruction) { r5_jal, 0,0, {0, arg0} };
 			goto r5_push_single_mi;
 		}
 
@@ -1368,10 +1541,31 @@ riscv_instruction_selection:;
 		ins[i].state = 1;
 	}
 
+
+
+
+
+
+
+
+
 	if (debug or true) {
 		puts("we just finished instruction selection!!!");
 		getchar();
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	for (nat i = 0; i < ins_count; i++) {
 		if (not ins[i].state) {
@@ -1383,13 +1577,22 @@ riscv_instruction_selection:;
 		}
 	}
 
-	if (debug) {
+
+
+	if (debug or true) {
 		puts("we just verified instruction selection!!!");
 		getchar();
 	}
+
+
+
+
 	
 	for (nat i = 0; i < mi_count; i++) ins[i] = mi[i];
+
+
 	ins_count = mi_count;
+
 
 	if (debug) {
 		puts("finished instruction selection!");
@@ -1398,12 +1601,23 @@ riscv_instruction_selection:;
 		getchar();
 	}
 
+
+
 	if (debug) {
 		puts("i just showed you instruction selection!!!");
 		getchar();
 	}
 
+
+
+
+
+
+
+
+
 	puts("RA: starting register allocation!");
+
 	nat hardware_register_count = 0;
 	if (target_arch == riscv_arch) hardware_register_count = 31;
 	else if (target_arch == msp430_arch) hardware_register_count = 12;
@@ -1413,17 +1627,28 @@ riscv_instruction_selection:;
 		abort();
 	}
 
+
+
+
 	if (debug) {
 		puts("selected arch for RA liveness!!");
 		getchar();
 	}
 
 
+
+
+
+
+
 	{ nat* alive = calloc(ins_count * var_count, sizeof(nat)); 
+
 	nat stack[4096] = {0};
 	nat stack_count = 0;	
+
 	for (nat i = 0; i < ins_count; i++) 
 		if (ins[i].op == halt) stack[stack_count++] = i;
+
 	for (nat i = 0; i < ins_count; i++)  ins[i].state = 0;
 
 
@@ -1431,12 +1656,13 @@ riscv_instruction_selection:;
 		if (debug) {
 			printf("error: no control flow graph terminations were found! this means that liveness cannot take place.\n");
 
-			puts("warning: instead, we are just going to push the last instruction index, with the assumption that the infinite loop is at the end of the program lol.");
-		getchar();
+			puts("warning: instead, we are just going to push the last instruction index, "
+				"with the assumption that the infinite loop is at the end of the program.");
+			getchar();
 		}
-
 		stack[stack_count++] = ins_count - 1;
 	}
+
 
 
 	while (stack_count) {
@@ -1451,8 +1677,9 @@ riscv_instruction_selection:;
 		if (target_arch == riscv_arch) {
 			preds = compute_predecessors(pc, &pred_count);
 			gotos[0] = compute_successors(pc, gotos + 1);
+		} 
 
-		} /*else if (target_arch == arm64_arch) {
+		/*else if (target_arch == arm64_arch) {
 			preds = compute_arm64_predecessors(pc, &pred_count);
 			gotos = compute_arm64_successors(pc);
 
@@ -1486,15 +1713,15 @@ riscv_instruction_selection:;
 		const nat a0 = ins[pc].args[0];
 		const nat a1 = ins[pc].args[1];
 		const nat a2 = ins[pc].args[2];
-		const nat a3 = ins[pc].args[3];
-		const nat a4 = ins[pc].args[4];
+		//const nat a3 = ins[pc].args[3];
+		//const nat a4 = ins[pc].args[4];
 		//const nat a5 = ins[pc].args[5];
 		
-		//const nat i0 = !!(imm & (1 << 0));
+		const nat i0 = !!(imm & (1 << 0));
 		const nat i1 = !!(imm & (1 << 1));
 		const nat i2 = !!(imm & (1 << 2));
-		const nat i3 = !!(imm & (1 << 3));
-		const nat i4 = !!(imm & (1 << 4));
+		//const nat i3 = !!(imm & (1 << 3));
+		//const nat i4 = !!(imm & (1 << 4));
 		//const nat i5 = !!(imm & (1 << 5));
 
 
@@ -1515,30 +1742,41 @@ riscv_instruction_selection:;
 
 		else if (target_arch == riscv_arch) { 
 
-			if (	op == i_type and a0 == 0x73 and 
-				a1 == 0x0 and a2 == 0x0 and 
-				a3 == 0x0 and a4 == 0x0
-			) {
+			if (op == r5_ecall) { 
+
+				puts("ecalls not implemented."); abort();;
+
 				for (nat e = 0; e < var_count; e++) {
 					if (register_index[e] >= 10 and register_index[e] <= 17) 
 						alive[pc * var_count + e] = 1;
-				}			
+				}
 
-			} else if (op == r_type) { // addr D A A
-				if (not i1) alive[pc * var_count + a1] = 2;
-				if (not i3) alive[pc * var_count + a3] = 1;
-				if (not i4) alive[pc * var_count + a4] = 1;
-			} else if (op == i_type) { // addi D A
-				if (not i1) alive[pc * var_count + a1] = 2;
-				if (not i3) alive[pc * var_count + a3] = 1;
-			} else if (op == s_type or op == b_type) { // BLT X Y   or // STW A A
-				if (not i2) alive[pc * var_count + a2] = 1;   // 0x23  0x010  arg0 arg1 0x00000 0 0 0 
-				if (not i3) alive[pc * var_count + a3] = 1;
-			} else if (op == u_type or op == j_type) { // JAL D   or  // LUI D
-				if (not i1) alive[pc * var_count + a1] = 2;
+
+			} else if (op == r5_add or op == r5_sub or op == r5_mul or 
+				op == r5_divu or op == r5_remu or op == r5_and or op == r5_or or 
+				op == r5_eor or op == r5_si or op == r5_sd
+			) { // addr D A A
+				if (not i0) alive[pc * var_count + a0] = 2;
+				if (not i1) alive[pc * var_count + a1] = 1;
+				if (not i2) alive[pc * var_count + a2] = 1;
+			} else if (op == r5_addi or op == r5_andi or op == r5_ori or 
+				op == r5_eori or op == r5_sii or op == r5_sdi
+			) { // addi D A
+				if (not i0) alive[pc * var_count + a0] = 2;
+				if (not i1) alive[pc * var_count + a1] = 1;
+			} else if (op == r5_blt or op == r5_bge or 
+					op == r5_bne or op == r5_beq
+			) { // BLT X Y   or // STW A A
+				if (not i0) alive[pc * var_count + a0] = 1;   // 0x23  0x010  arg0 arg1 0x00000 0 0 0 
+				if (not i1) alive[pc * var_count + a1] = 1;
+			} else if (op == r5_jal) { // JAL D   or  // LUI D
+				if (not i0) alive[pc * var_count + a0] = 2;
 			} else goto unknown_liveness_error;
 
-		} /*else if (target_arch == msp430_arch) {
+		} 
+
+
+		/*else if (target_arch == msp430_arch) {
 			const nat msp_mov = 4, reg_mode = 0;
 			if (op == m4_op) { 
 				if (not i2) alive[pc * var_count + a2] = not (a0 == msp_mov and a1 == reg_mode);
@@ -1589,6 +1827,11 @@ riscv_instruction_selection:;
 	nat range_var[4096] = {0};
 	nat range_count = 0;
 
+
+
+
+
+
 	puts("now we have to form the live-range-node listing!");
 
 	for (nat var = 0; var < var_count; var++) {
@@ -1600,8 +1843,15 @@ riscv_instruction_selection:;
 		while (pc < ins_count and alive[pc * var_count + var] == 2) pc++;
 
 		if (pc < ins_count and alive[pc * var_count + var] != 1) continue;
+		nat begin = pc;
 
-		while (pc < ins_count) {
+
+		pc = ins_count - 1;
+		while (pc and alive[pc * var_count + var] == 0) pc--; pc++;
+
+		nat end = pc;
+
+		/*while (pc < ins_count) {
 
 			if (debug) {
 			printf("[begin]: \tlive range var = %s: { ", variables[var]);
@@ -1633,10 +1883,46 @@ riscv_instruction_selection:;
 
 			while (pc < ins_count and alive[pc * var_count + var] != 2) pc++; 
 			while (pc < ins_count and alive[pc * var_count + var] == 2) pc++;
-		} 
+		} */
+
+
+
+
+			if (debug) {
+			printf("[begin]: \tlive range var = %s: { ", variables[var]);
+			for (nat i = 0; i < ins_count; i++) {
+				if (i != begin) printf("  %llu  ", alive[i * var_count + var]);
+				if (i == begin) printf(" [%llu] ", alive[i * var_count + var]);
+			}
+			puts("} ");
+			} 
+
+			if (debug) { printf("[  end]: \tlive range var = %s: { ", variables[var]);
+			for (nat i = 0; i < ins_count; i++) {
+				if (i != end) printf("  %llu  ", alive[i * var_count + var]);
+				if (i == end) printf(" [%llu] ", alive[i * var_count + var]);
+			}
+			puts("} \n");
+			getchar(); }
+
+
+
+		range_begin[range_count] = begin;
+		range_end[range_count] = end;
+		range_var[range_count++] = var;
+
+
 		if (debug) { printf("computed all live ranges for variable %s...\n", variables[var]);
 		getchar(); } 
 	}
+
+
+
+
+
+
+
+
 
 	if (debug) {
 
@@ -1877,6 +2163,19 @@ riscv_instruction_selection:;
 	}
 
 
+
+
+
+
+
+/*	puts("overriding register allocation...\n");
+	for (nat i = 0; i < range_count; i++) {
+		allocation[i] = i;
+	}
+*/
+
+
+
 	if (debug) {
 		puts("RA: FINAL REGISTER ALLOCATION:");
 		for (nat i = 0; i < range_count; i++) {
@@ -1936,7 +2235,7 @@ riscv_instruction_selection:;
 			}
 
 
-			if (range == range_count) {
+			if (range == range_count and var) {
 				if (debug) {
 					puts("warning: this variable does not have an associated live range, "
 						"and thus this instruction has been deleted."
@@ -1945,9 +2244,9 @@ riscv_instruction_selection:;
 				}
 				ins[pc].state = 1;
 				continue;
-			}
+			} 
 
-			if (allocation[range] == (nat) -1) {
+			if (var and allocation[range] == (nat) -1) {
 				if (debug) {
 					printf("warning: no hardware register index was "
 						"not found for variable %s in the below instruction. "
@@ -1961,11 +2260,11 @@ riscv_instruction_selection:;
 				continue;
 			}
 
-			ins[pc].args[a] = allocation[range];
+			ins[pc].args[a] = var ? allocation[range] : 0;
 			if (target_arch != c_arch) ins[pc].imm |= 1LLU << a;
 
 			printf("info: filled in register index %lld for variable %s into this instruction. ", 
-				allocation[range], variables[var]
+				var ? allocation[range] : 0, variables[var]
 			);
 		}
 	}
@@ -2001,12 +2300,359 @@ riscv_instruction_selection:;
 
 	puts("generating final machine code binary...");
 
-	puts("GOT TO THE END OF THE PROGRAM!!!!");
-	puts("GOT TO THE END OF THE PROGRAM!!!!");
-	puts("GOT TO THE END OF THE PROGRAM!!!!");
-	puts("GOT TO THE END OF THE PROGRAM!!!!");
+
+
+
+	nat length = 0;
+	const nat max = 16384;
+	char* output = calloc(max, 1);
+
+	length += (nat) snprintf(output + length, max, 
+		"(autogenerated assembly file by the compiler backend)\n"
+
+		"\tfile /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/core.s\n"
+		"\tfile /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/ascii.s\n"
+		"\tfile /Users/dwrr/root/projects/programming_language/new_cross_assembler2/library/useful.s\n"
+
+		"\tset R0 0\n"
+		"\tset R1 1\n"
+		"\tset R2 01\n"
+		"\tset R3 11\n"
+		"\tset R4 001\n"
+		"\tset R5 101\n"
+		"\tset R6 011\n"
+		"\tset R7 111\n"
+		"\tset R8 0001\n"
+		"\tset R9 1001\n"
+		"\tset R10 0101\n"
+		"\tset R11 1101\n"
+		"\tset R12 0011\n"
+		"\tset R13 1011\n"
+		"\tset R14 0111\n"
+		"\tset R15 1111\n"
+		"\n"
+		"\triscv_hex\n"
+		"\n"
+	);
+
+
+
+
+	for (nat i = 0; i < ins_count; i++) {
+
+
+		puts("generating assembly code...");
+
+		if (debug) {
+			print_instruction_window_around(i, 0, "");
+			puts("[assembly generation]");
+			puts(""); puts(output); puts("");
+			getchar();
+		}
+
+
+
+		const nat op = ins[i].op;
+
+		const nat a0 = ins[i].args[0];
+		const nat a1 = ins[i].args[1];
+		const nat a2 = ins[i].args[2];
+
+		if (op == r5_addi) {
+			length += (nat) snprintf(output + length, max, 
+				"\tri r_imm r_add R%llu R%llu ", a0, a1
+			);
+			for (nat ii = 0; ii < 12; ii++) {
+				if (ii and ii % 4 == 0) length += (nat) snprintf(output + length, max, "_");
+				length += (nat) snprintf(output + length, max, 
+					"%c", (char) ('0' + ((a2 >> ii) & 1))
+				);
+			}
+			length += (nat) snprintf(output + length, max, 
+				"\n"
+			);
+		}
+
+		else if (op == r5_blt) {
+			length += (nat) snprintf(output + length, max, 
+				"\trb r_branch r_blt R%llu R%llu L%llu\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_bge) {
+			length += (nat) snprintf(output + length, max, 
+				"\trb r_branch r_bge R%llu R%llu L%llu\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_bne) {
+			length += (nat) snprintf(output + length, max, 
+				"\trb r_branch r_bne R%llu R%llu L%llu\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_beq) {
+			length += (nat) snprintf(output + length, max, 
+				"\trb r_branch r_beq R%llu R%llu L%llu\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_add) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_add R%llu R%llu R%llu 0\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_and) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_and R%llu R%llu R%llu 0\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_or) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_or R%llu R%llu R%llu 0\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_eor) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_eor R%llu R%llu R%llu 0\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_si) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_si R%llu R%llu R%llu 0\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_sd) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_sd R%llu R%llu R%llu 0\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_sub) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_add R%llu R%llu R%llu r_signed\n", a0, a1, a2
+			);
+		}
+
+		else if (op == r5_mul) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_mul R%llu R%llu R%llu r_m\n", a0, a1, a2
+			);
+		}
+
+
+		else if (op == r5_divu) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_divu R%llu R%llu R%llu r_m\n", a0, a1, a2
+			);
+		}
+
+
+		else if (op == r5_remu) {
+			length += (nat) snprintf(output + length, max, 
+				"\trr r_reg r_remu R%llu R%llu R%llu r_m\n", a0, a1, a2
+			);
+		}
+
+		else if (op == at) {
+			length += (nat) snprintf(output + length, max, 
+				"\nat L%llu\n", a0
+			);
+
+		} else if (op == halt) {
+			length += (nat) snprintf(output + length, max, 
+				"\t(control flow termination point here)\n"
+			);
+
+		} else if (op == r5_jal) {
+			length += (nat) snprintf(output + length, max, 
+				"\trj r_jal R%llu L%llu\n", a0, a1
+			);
+
+		} else {
+			puts("error: there was not assembly translation rule for this instruction, aborting...\n");
+			abort();
+		}
+	}
+
+
+
+	length += (nat) snprintf(output + length, max, 
+		"\neoi\n"
+	);
+	
+	printf("output:\n");
+	puts("------------------------------------------------------------------");
+	puts("");
+	puts(output);
+	puts("");
+
+	{
+	FILE* file = fopen("output_assembly.s", "w");
+	if (not file) { perror("fopen"); exit(1); }
+	
+	fprintf(file, "%s\n", output);
+	fclose(file);
+
+	puts("assembly file outputted to \"output_assembly.s\"...");
+
+	}
+
+
+
 
 } // main
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+___________________________________
+
+	IR language ISA 
+    as of: 1202508251.143137
+
+___________________________________
+
+
+	set r r
+	add r r
+	sub r r
+	mul r r
+	div r r
+	rem r r
+	and r r
+	or r r
+	eor r r 
+	si r r 
+	sd r r 
+	
+	li r k
+	la r l
+
+	lt r r l
+	ge r r l
+	ne r r l
+	eq r r l	
+	at l
+	do l
+	sc
+	halt
+	
+	ldb r r
+	ldh r r
+	ldw r r
+	ldd r r
+	stb r r
+	sth r r
+	stw r r
+	std r r
+
+	reg r k
+
+	emit k
+	sect k
+
+	def r
+	del r
+	
+	target k
+	format k 
+	stacksize k 
+	overwrite
+
+
+
+
+
+
+
+
+
+
+
+___________________________________
+
+       implemented subset
+
+	IR language ISA 
+    as of: 1202508251.143137
+
+___________________________________
+
+	li r k
+	set r r
+	add r r
+	sub r r
+	mul r r
+	div r r
+	rem r r
+	and r r
+	or r r
+	eor r r 
+	si r r 
+	sd r r 
+	
+	lt r r l
+	ge r r l
+	ne r r l
+	eq r r l	
+	at l
+	do l
+
+	halt	
+	emit k
+	def r
+	del r
+	
+	target k
+	format k 
+	stacksize k 
+	overwrite
+
+*/
+
+
+
+
+
+
+
+
+
 
 
 

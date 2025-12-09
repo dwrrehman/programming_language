@@ -1,4 +1,10 @@
-define limit = 100000
+( a prime number program to count 
+  the number of primes less than a 
+  given limit, in this case 1000.
+  written 1202512092.054922 by dwrr
+)
+
+define limit = 1000
 define count = 0
 define i = 0
 
@@ -7,7 +13,7 @@ repeat
 	at innerloop
 		if < j i else do prime end
 		define r = % i j
-		if = r 0 do composite end del r
+		if = r 0 do composite else end del r
 		set j = + j 1 del j
 		do innerloop del innerloop
 at prime 
@@ -17,4 +23,7 @@ at composite
 	while < i limit del i
 
 eoi
+
+
+
 
