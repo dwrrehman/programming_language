@@ -863,7 +863,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 		} else if (op == mb) {
 			if (a0 >= (1LLU << 3LLU)) print_error("mb: invalid 3-bit condition", a0, pc, 1);
 			//if (a1 >= (1LLU << 11LLU)) print_error("mb: invalid 11-bit label", a1, pc, 2);
-			const nat offset = ((a1 - output_count - 2) >> 1LLU) & 0x3FF;
+			const nat offset = (((a1 - output_count) >> 1LLU) - 1) & 0x3FF;
 			const nat word = 
 				(1LLU << 13LLU) | 
 				(a0 << 10LLU) | 
@@ -1268,7 +1268,7 @@ static nat get_length(nat* in) {
 	nat length = 4;
 	if (op == mo) {
 		length = 2;
-		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
+		if ((a4 == 1 and a5 != 3) or (a4 == 3 and not a5)) length += 2;
 		if (a1 == 1) length += 2;
 	}
 	else if (op == mb) length = 2;

@@ -1268,7 +1268,7 @@ static nat get_length(nat* in) {
 	nat length = 4;
 	if (op == mo) {
 		length = 2;
-		if ((a4 == 1 and (a5 != 2 and a5 != 3)) or (a4 == 3 and not a5)) length += 2;
+		if ((a4 == 1 and a5 != 3) or (a4 == 3 and not a5)) length += 2;
 		if (a1 == 1) length += 2;
 	}
 	else if (op == mb) length = 2;

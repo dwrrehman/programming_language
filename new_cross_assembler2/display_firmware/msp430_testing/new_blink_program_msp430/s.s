@@ -54,14 +54,14 @@ set constant_1 cg
 set fixed_reg sr
 set fixed_mode index_mode
 
-set bit0 10000000
+(set bit0 10000000
 set bit1 01000000
 set bit2 00100000
 set bit3 00010000
 set bit4 00001000
 set bit5 00000100
 set bit6 00000010
-set bit7 00000001
+set bit7 00000001)
 
 del x
 
@@ -95,7 +95,7 @@ at skipmacros del skipmacros
 
 
 (
-	constants for the msp430g2553 specifically:
+	constants for the msp430fr5994 specifically:
 	1202509022.220354
 )
 
@@ -134,7 +134,7 @@ set target msp430_arch
 st output_format ti_txt_executable
 st overwrite_output true
 
-sect start_of_sram
+sect start_of_fram
 
 	mo m_mov  reg_mode sp 0   imm_mode imm_reg start_of_stack   size_word
 	mo m_mov  fixed_mode fixed_reg wdtctl   imm_mode imm_reg 1111_1011_0101_1010   size_word
@@ -174,10 +174,13 @@ sect start_of_sram
 	m_nop
 
 sect reset_vector
-	emit 01 start_of_sram
+	emit 01 start_of_fram
 
 
 eoi
+
+
+
 
 updated this program to work with the msp430fr5994, on 1202509232.011804
 
