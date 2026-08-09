@@ -4,98 +4,8 @@
 // rewritten on 1202508133.024130 by dwrr
 // finished errors on 1202508133.185450 
 
-
-// bug: if you partially issue the last runtime instruction (incomplete argument list), no warning/error/diagnostic is generated....
-// fix this
-
-
 // bug:  redo  / fix the arity for all arm64 instructions,  its one more becuase of the sf bit
-
-
-
-// bug:   make   addi   opcode bit arguments    appear first in the argument list!
-
-
-
-
-
-/* constructing the C backend of the assembler!
-
-	which will thus allow us to run code on x86 machines 
-	and other isa's which we don't support
-
-
-the trick is that we will NOTTT USE the CTE language isa 
-but instead use the risc-v backend, 
-	but there will be a flag which will translate the risc-v MI's to C code! 
-	pretty interesting lol. lets see how it goes. 
-
-
-the mapping will be:
-
-
-	
-	rr r_reg r_add d r s 0   --->   x[d] = x[r] + x[s];
-	rr r_reg r_sub d r s 0   --->   x[d] = x[r] - x[s];
-	rr r_reg r_sll d r s 0   --->   x[d] = x[r] << x[s];
-	rr r_reg r_srl d r s 0   --->   x[d] = x[r] >> x[s];
-	rr r_reg r_slt d r s 0   --->   x[d] = x[r] < x[s];
-	rr r_reg r_and d r s 0   --->   x[d] = x[r] & x[s];
-	rr r_reg r_or  d r s 0   --->   x[d] = x[r] | x[s];
-	rr r_reg r_xor d r s 0   --->   x[d] = x[r] ^ x[s];
-
-	rr r_mulop1 r_mulop2 d r s 0   --->   x[d] = x[r] * x[s];
-	rr r_divop1 r_divop2 d r s 0   --->   x[d] = x[r] / x[s];
-	rr r_remop1 r_remop2 d r s 0   --->   x[d] = x[r] % x[s];
-
-	rb r_branch r_bne r s l	  --->   if (x[r] != x[s]) goto l;
-	rb r_branch r_beq r s l	  --->   if (x[r] == x[s]) goto l;
-	rb r_branch r_bltu r s l   --->   if (x[r] < x[s]) goto l;
-	rb r_branch r_bgeu r s l   --->   if (x[r] >= x[s]) goto l;
-	rb r_branch r_blt r s l   --->   if ((int64_t) x[r] < (int64_t) x[s]) goto l;
-	rb r_branch r_bge r s l   --->   if ((int64_t) x[r] >= (int64_t) x[s]) goto l;
-
-	rs r_store r_sb a k r    --->   *(uint8_t*)(x[a] + k) = x[r];
-	rs r_store r_sh a k r    --->   *(uint16_t*)(x[a] + k) = x[r];
-	rs r_store r_sw a k r    --->   *(uint32_t*)(x[a] + k) = x[r];
-	rs r_store r_sd a k r    --->   *(uint64_t*)(x[a] + k) = x[r];
-
-
-
-
-	WAIT
-
-
-			...instead of translating risc-v to c code....
-
-				which we could do as well... 
-
-
-				what if we just directly translate it to x86 machine code... 
-
-						like, it wouldnt be thattt much harder, honestlyy
-
-							it doesnt have to be fast at all lol 
-
-
-							....
-
-
-
-
-				and then to get code to run on our phone, we would use the linux system call abi, and also output an elf file too! 
-
-
-						okay that could work!
-
-
-	
-
-*/
-
-
-
-
+// bug:  make   addi   opcode bit arguments    appear first in the argument list!
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -169,6 +79,7 @@ enum isa {
 	ld, st, lt, eq, at, emit, sect, 
 	file, del, str, eoi, 
 	rr, ri, rs, rb, ru, rj,
+	cr, ci, css, ciw, cl, cs, ca, cb, cj, 
 	mo, mb, ms,
 	nop, svc, mov, bfm,
 	adc, addx, addi, addr, adr,
@@ -187,6 +98,7 @@ static const char* operations[isa_count] = {
 	"ld", "st", "lt", "eq", "at", "emit", "sect", 
 	"file", "del", "str", "eoi", 
 	"rr", "ri", "rs", "rb", "ru", "rj", 
+	"cr", "ci", "css", "ciw", "cl", "cs", "ca", "cb", "cj", 
 	"mo", "mb", "ms",
 	"nop", "svc", "mov", "bfm", 
 	"adc", "addx", "addi", "addr", "adr", 
@@ -204,6 +116,7 @@ static const nat arity[isa_count] = {
 	2, 2, 3, 3, 1, 2, 1, 
 	1, 1, 0, 0, 
 	6, 5, 5, 5, 3, 3,
+	4, 4, 4, 4, 4, 4, 5, 4, 3, 
 	8, 2, 5,
 	0, 0, 4, 7, 
 	6, 7, 6, 7, 3,
@@ -211,7 +124,7 @@ static const nat arity[isa_count] = {
 	4, 4, 7, 7, 
 	5, 7, 5, 3, 
 	7, 6, 5, 6,
-	8, 5,
+	8, 4,
 };
 
 static const nat is_undefined = 1;
@@ -702,11 +615,11 @@ static void print_disassembly(const nat arch) {
 	char string[4096] = {0};
 
 	if (arch == riscv_arch) {
-		snprintf(string, sizeof string, "./rv_dis/run print %s", output_filename);
+		snprintf(string, sizeof string, "./tools/rv_dis/run print %s", output_filename);
 		system(string); 
 
 	} else if (arch == msp430_arch) {
-		snprintf(string, sizeof string, "./msp430_dis/run %s", output_filename);
+		snprintf(string, sizeof string, "./tools/msp430_dis/run %s", output_filename);
 		system(string);
 
 	} else if (arch == arm64_arch) {
@@ -715,6 +628,11 @@ static void print_disassembly(const nat arch) {
 		snprintf(string, sizeof string, "objdump -D %s", output_filename);
 		system(string);
 	}
+}
+
+static bool branch_out_of_range(nat target, nat here, nat maximum_range) {
+	if (here < target) { if (target - here >= maximum_range) return true; return false; } 
+	else { if (here - target >= maximum_range) return true; return false; } 
 }
 
 static void generate_machine_instruction(nat* in, nat pc) {
@@ -790,8 +708,8 @@ static void generate_machine_instruction(nat* in, nat pc) {
 
 			if (a0 >= (1LLU <<  7LLU)) print_error("rs: invalid 7-bit major op code", a0, pc, 1);
 			if (a1 >= (1LLU <<  3LLU)) print_error("rs: invalid 3-bit minor op code", a1, pc, 2);
-			if (a2 >= (1LLU <<  5LLU)) print_error("rs: invalid register", a2, pc, 3);
-			if (a3 >= (1LLU <<  5LLU)) print_error("rs: invalid register", a3, pc, 4);
+			if (a2 >= (1LLU <<  5LLU)) print_error("rs: invalid 5-bit source1 register", a2, pc, 3);
+			if (a3 >= (1LLU <<  5LLU)) print_error("rs: invalid 5-bit source2 register", a3, pc, 4);
 			if (a4 >= (1LLU << 12LLU)) print_error("rs: invalid 12-bit immediate", a4, pc, 5);
 
 			const nat word = 
@@ -806,7 +724,7 @@ static void generate_machine_instruction(nat* in, nat pc) {
 		} else if (op == ru) {
 
 			if (a0 >= (1LLU <<  7LLU)) print_error("ru: invalid 7-bit major op code", a0, pc, 1);
-			if (a1 >= (1LLU <<  5LLU)) print_error("ru: invalid destination register", a1, pc, 2);
+			if (a1 >= (1LLU <<  5LLU)) print_error("ru: invalid 5-bit destination register", a1, pc, 2);
 			if (a2 >= (1LLU << 20LLU)) print_error("ru: invalid 20-bit immediate", a2, pc, 3);
 			
 			nat im = (a2 << 12) & 0xFFFFF000;
@@ -822,8 +740,8 @@ static void generate_machine_instruction(nat* in, nat pc) {
 			if (a1 >= (1LLU << 3LLU)) print_error("rb: invalid 3-bit condition", a1, pc, 2);
 			if (a2 >= (1LLU << 5LLU)) print_error("rb: invalid 5-bit source1 register", a2, pc, 3);
 			if (a3 >= (1LLU << 5LLU)) print_error("rb: invalid 5-bit source1 register", a3, pc, 4);
-
-			//if (a4 >= (1LLU << 12LLU)) { puts("rb error"); abort(); }  //TODO: fix this
+			if (branch_out_of_range(a4, output_count, 4096) or ((a4 - output_count) & 1)) 
+				print_error("rb: invalid CF dest: out of range 12-bit imm", a4, pc, 5);
 			
 			nat im = (a4 - output_count) & 0x1fff;
 			const nat bit4_1  = (im >> 1) & 0xF;
@@ -842,11 +760,12 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a0 <<  0U) ;
 			insert_u32((u32) word);
 
-
 		} else if (op == rj) {
-			if (a0 >= (1LLU << 7LLU)) { puts("rj error"); abort(); } 
-			if (a1 >= (1LLU << 5LLU)) { puts("rj error"); abort(); } 
-			if (a2 >= (1LLU << 21LLU)) { puts("rj error"); abort(); } // TODO: this check isnt pc-relative...
+			if (a0 >= (1LLU << 7LLU)) print_error("rj: invalid 7-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU << 5LLU)) print_error("rj: invalid 5-bit destination register", a1, pc, 2);
+			if (branch_out_of_range(a2, output_count, 1 << 20LLU) or ((a2 - output_count) & 1)) 
+				print_error("rj: invalid CF dest: out of range 20-bit imm", a2, pc, 3);
+
 			nat im = (a2 - output_count) & 0x1fffff;
 			const nat bit10_1  = (im >> 1U) & 0x3FF;
 			const nat bit19_12 = (im >> 12U) & 0xFF;
@@ -859,17 +778,179 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a0 <<  0U) ;
 			insert_u32((u32) word);
 
+		} else if (op == cr) {
+			if (a0 >= (1LLU <<  2LLU)) print_error("cr: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  4LLU)) print_error("cr: invalid 4-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  5LLU)) print_error("cr: invalid 5-bit destination/source-1 register", a2, pc, 3);
+			if (a3 >= (1LLU <<  5LLU)) print_error("cr: invalid 5-bit source-2 register", a3, pc, 4);
+			
+			const nat word =
+				(a0) |
+				(a3 <<  2U) |
+				(a2 <<  7U) |
+				(a1 <<  12U) ;
 
+			insert_u16((u16) word);
+
+		} else if (op == css) {
+			if (a0 >= (1LLU <<  2LLU)) print_error("css: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  3LLU)) print_error("css: invalid 3-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  6LLU)) print_error("css: invalid 6-bit immediate", a2, pc, 3);
+			if (a3 >= (1LLU <<  5LLU)) print_error("css: invalid 5-bit source register", a3, pc, 4);
+
+			const nat word =
+				(a0) |
+				(a3 <<  2U) |
+				(a2 <<  7U) |
+				(a1 <<  13U) ;
+
+			insert_u16((u16) word);
+
+		} else if (op == ci) {
+			if (a0 >= (1LLU <<  2LLU)) print_error("ci: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  3LLU)) print_error("ci: invalid 3-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  5LLU)) print_error("ci: invalid 5-bit destination/source-1 register", a2, pc, 3);
+			if (a3 >= (1LLU <<  6LLU)) print_error("ci: invalid 6-bit immediate", a3, pc, 4);
+			
+			const nat word =
+				(a0) |
+				((a3 & 0xF) <<  2U) |
+				(a2 <<  7U) |
+				(((a3 >> 4) & 1) << 12U) |
+				(a1 <<  13U) ;
+				
+			insert_u16((u16) word);
+
+		} else if (op == ciw) {
+			if (a0 >= (1LLU <<  2LLU)) print_error("ciw: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  3LLU)) print_error("ciw: invalid 3-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  4LLU) or a2 < 8) print_error("ciw: invalid 3-bit compressed source register", a2, pc, 3);
+			if (a3 >= (1LLU <<  8LLU)) print_error("ciw: invalid 8-bit SP offset immediate", a3, pc, 4);
+
+			const nat word =
+				(a0) |
+				((a2 & 7) <<  2U) |
+				(((a3 >> 3U) & 1) <<  5U) |
+				(((a3 >> 2U) & 1) <<  6U) |
+				(((a3 >> 6U) & 0xF) <<  7U) |
+				(((a3 >> 4U) & 3) <<  11U) |
+				(a1 << 13U) ;
+
+			insert_u16((u16) word);
+
+		} else if (op == cs) {
+			if (a0 >= (1LLU <<  2LLU)) print_error("cs: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  3LLU)) print_error("cs: invalid 3-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  3LLU)) print_error("cs: invalid 3-bit destination/source-2 compressed register", a2, pc, 3);
+			if (a3 >= (1LLU <<  3LLU)) print_error("cs: invalid 5-bit source-1 compressed register", a3, pc, 4);
+			if (a4 >= (1LLU <<  5LLU)) print_error("cs: invalid 5-bit immediate", a4, pc, 5);
+
+			if (a1 == 2 or a1 == 6) {  // 32-bit load/store integer double
+
+				const nat word = 
+					(a0) |
+					(a2 <<  2U) |
+					(((a4 >> 6U) & 1) <<  5U) |
+					(((a4 >> 2U) & 1) <<  6U) |
+					(a3 <<  7U) |
+					(((a4 >> 3U) & 7) <<  10U) |					
+					(a1 <<  13U) ;
+
+				insert_u16((u16) word);
+
+			} else if (a1 == 3 or a1 == 7) { // 64-bit load/store integer double
+
+				const nat word = 
+					(a0) |
+					(a2 <<  2U) |
+					(((a4 >> 6U) & 3) <<  5U) |
+					(a3 <<  7U) |
+					(((a4 >> 3U) & 7) <<  10U) |
+					(a1 <<  13U) ;
+
+				insert_u16((u16) word);
+
+			} else {
+				puts("cl: error: load/store encoding with this minor op code is unimplemented");
+				abort();
+			}
+
+		} else if (op == ca) {
+			if (a0 >= (1LLU <<  2LLU)) print_error("ca: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU <<  6LLU)) print_error("ca: invalid 6-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU <<  2LLU)) print_error("ca: invalid 2-bit minor op code", a2, pc, 3);
+			if (a3 >= (1LLU <<  3LLU)) print_error("ca: invalid 3-bit destination/source-1 register", a3, pc, 4);
+			if (a4 >= (1LLU <<  3LLU)) print_error("ca: invalid 3-bit source-2 register", a4, pc, 5);
+			
+			const nat word =
+				(a0) |
+				(a4 <<  2U) |
+				(a2 << 5U) | 
+				(a3 << 7U) |
+				(a1 <<  10U) ;
+
+			insert_u16((u16) word);
+
+		} else if (op == cb) {
+			if (a0 >= (1LLU << 2LLU)) print_error("cb: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU << 3LLU)) print_error("cb: invalid 3-bit minor op code", a1, pc, 2);
+			if (a2 >= (1LLU << 3LLU)) print_error("cb: invalid 3-bit source1 register", a2, pc, 3);
+			if (branch_out_of_range(a3, output_count, 256) or ((a3 - output_count) & 1))
+				print_error("cb: invalid CF dest: out of range 8-bit imm", a3, pc, 4);
+
+			const nat im = (a3 - output_count) & 0x1ff;
+
+			const nat word =
+				(a0) |
+				(((im >> 5U) & 1) << 2U) |
+				(((im >> 1U) & 1) << 3U) |
+				(((im >> 2U) & 1) << 4U) |
+				(((im >> 6U) & 1) << 5U) |
+				(((im >> 7U) & 1) << 6U) |
+				(a2 << 7U) |
+				(((im >> 3U) & 1) << 10U) |
+				(((im >> 4U) & 1) << 11U) |
+				(((im >> 8U) & 1) << 12U) |				
+				(a1 << 13U) ;
+
+			insert_u16((u16) word);
+
+		} else if (op == cj) {
+			if (a0 >= (1LLU << 2LLU)) print_error("cj: invalid 2-bit major op code", a0, pc, 1);
+			if (a1 >= (1LLU << 3LLU)) print_error("cj: invalid 3-bit minor op code", a1, pc, 2);
+			if (branch_out_of_range(a2, output_count, 2048) or ((a2 - output_count) & 1))
+				print_error("cj: invalid CF dest: out of range 11-bit imm", a2, pc, 3);
+
+			const nat im = (a2 - output_count) & 0xfff;
+
+			const nat word =
+				(a0) |
+				(((im >> 5U) & 1) << 2U) |
+				(((im >> 1U) & 1) << 3U) |
+				(((im >> 2U) & 1) << 4U) |
+				(((im >> 3U) & 1) << 5U) |
+				(((im >> 7U) & 1) << 6U) |
+				(((im >> 6U) & 1) << 7U) |
+				(((im >> 10U) & 1) << 8U) |
+				(((im >> 8U) & 1) << 9U) |
+				(((im >> 9U) & 1) << 10U) |
+				(((im >> 4U) & 1) << 11U) |
+				(((im >> 11U) & 1) << 12U) |
+				(a1 << 13U) ;
+
+			insert_u16((u16) word);
+		
 		} else if (op == mb) {
 			if (a0 >= (1LLU << 3LLU)) print_error("mb: invalid 3-bit condition", a0, pc, 1);
-			//if (a1 >= (1LLU << 11LLU)) print_error("mb: invalid 11-bit label", a1, pc, 2);
+			if (branch_out_of_range(a1, output_count, 1024) or ((a1 - output_count) & 1)) 
+				print_error("mb: invalid CF dest: out of range 10-bit imm", a1, pc, 2);
+
 			const nat offset = ((a1 - output_count - 2) >> 1LLU) & 0x3FF;
 			const nat word = 
 				(1LLU << 13LLU) | 
 				(a0 << 10LLU) | 
 				(offset << 0LLU);
 			insert_u16((u16) word);
-
 
 		} else if (op == mo) {
 			if (a0 >= (1LLU <<  4LLU)) print_error("mo: invalid 4-bit op code", a0, pc, 1);
@@ -920,7 +1001,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(0x1FU << 16U) | (a0 << 5U);
 			insert_u32((u32) word);
 
-
 		} else if (op == adc) {
 			if (a0 >= 1LLU << 5LLU) print_error("adc: 5-bit destination register", a0, pc, 1);
 			if (a1 >= 1LLU << 5LLU) print_error("adc: 5-bit source1 register", a1, pc, 2);
@@ -938,7 +1018,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a0 << 0U);
 			insert_u32((u32) word);
 
-
 		} else if (op == shv) {
 			if (a0 >= 1LLU << 5LLU) print_error("shv: 5-bit dest register", a0, pc, 1);
 			if (a1 >= 1LLU << 5LLU) print_error("shv: 5-bit source register", a1, pc, 2);
@@ -952,7 +1031,6 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a1  <<  5U) |
 				(a0  << 0U);
 			insert_u32((u32) word);
-
 
 		} else if (op == mov) {
 			if (a0 >= (1LLU <<  5LLU)) print_error("mov: 5-bit destination register", a0, pc, 1);
@@ -968,43 +1046,45 @@ static void generate_machine_instruction(nat* in, nat pc) {
 				(a0);
 			insert_u32((u32) word);
 
-
 		} else if (op == bc) {
 			if (a0 >= (1LLU << 4LLU)) print_error("bc: 4-bit condition code", a0, pc, 1);
-			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
-			// check the label
+			if (branch_out_of_range(a1, output_count, 1LLU << 20LLU) or ((a1 - output_count) & 3)) 
+				print_error("bc: invalid CF dest: out of range 20-bit imm", a1, pc, 2);
+
 			const nat offset = 0x7ffff & ((a1 - output_count) >> 2LLU);
 			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
 			insert_u32((u32) word);
 
-
 		} else if (op == jmp) {
 			if (a0 >= (1LLU << 1LLU)) print_error("jmp: should link bit", a0, pc, 1);
-			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
-			// check the label
+			if (branch_out_of_range(a1, output_count, 1LLU << 27LLU) or ((a1 - output_count) & 3)) 
+				print_error("jmp: invalid CF dest: out of range 27-bit imm", a1, pc, 2);
+
 			const nat offset = 0x3ffffff & ((a1 - output_count) >> 2LLU);
 			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
 			insert_u32((u32) word);
 
 
-		} else if (op == adr) {			
+		} else if (op == adr) {
+			if (a0 >= (1LLU << 5LLU)) print_error("adr: invalid 5-bit destination register", a0, pc, 1);
+			if (branch_out_of_range(a1, output_count, 1LLU << 20LLU)) print_error("jmp: invalid CF dest: out of range 21-bit imm", a1, pc, 2);
 			if (a2 >= (1LLU << 1LLU)) print_error("adr: is page bit", a2, pc, 3);
-			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
-			nat o1 = a2;
-			nat count = a1 - output_count;
-			if (a2) count /= 4096;
-			const nat offset = 0x1fffff & count;
+
+			nat n = a1 - output_count;
+			if (a2) n /= 4096;
+			const nat offset = 0x1fffff & n;
 			const nat lo = offset & 3, hi = offset >> 2;
+
 			const nat word = 
-				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) |
+				(a2 << 31U) | (lo << 29U) | (0x10U << 24U) |
 				(hi << 5U) | (a0);
 			insert_u32((u32) word);
 
-
 		} else if (op == cbz) {
-			if (a0 >= (1LLU << 5LLU)) print_error("source register", a0, pc, 1);
-			//if (a1 >= (1LLU << 26LLU)) print_error("label", a1, pc, 2); //TODO: fix this 
-			if (a2 >= (1LLU << 1LLU)) print_error("negate bit", a2, pc, 3);
+			if (a0 >= (1LLU << 5LLU)) print_error("cbz: invalid 5-bit source register", a0, pc, 1);
+			if (branch_out_of_range(a1, output_count, 1LLU << 20LLU) or ((a1 - output_count) & 3)) 
+				print_error("jmp: invalid CF dest: out of range 20-bit imm", a1, pc, 2);
+			if (a2 >= (1LLU << 1LLU)) print_error("cbz: invalid 1-bit negate bit", a2, pc, 3);
 
 			const nat offset = 0x7ffff & ((a1 - output_count) >> 2LLU);
 			const nat word = 
@@ -1016,7 +1096,8 @@ static void generate_machine_instruction(nat* in, nat pc) {
 		} else if (op == tbz) {
 			if (a0 >= (1LLU << 5LLU)) print_error("source register", a0, pc, 1);
 			if (a1 >= (1LLU << 6LLU)) print_error("bit selection", a1, pc, 2);
-			//if (a2 >= (1LLU << 6LLU)) print_error("label", a2, pc, 3);//TODO: fix me
+			if (branch_out_of_range(a2, output_count, 1LLU << 15LLU) or ((a2 - output_count) & 3)) 
+				print_error("jmp: invalid CF dest: out of range 15-bit imm", a2, pc, 3);
 			if (a3 >= (1LLU << 1LLU)) print_error("negate bit", a3, pc, 4);
 
 			const nat b40 = a1 & 0x1F;
@@ -1465,6 +1546,13 @@ process_file:;
 		ins_count += 16;
 		goto finish_operation;
 	}
+
+	if (arg_count) parse_error(
+		"incomplete argument list for instruction", 
+		"expected valid argument here", 
+		"", 0, this_file, start, text_length - 1
+	);
+
 	stack_count--;
 	if (stack_count) goto process_file; }
 
@@ -2051,2547 +2139,6 @@ finished_outputting:
 
 
 
-
-
-
-
-
-
-/*static nat previous = 0;
-
-static void debug_414(const char* string) {
-	if (previous != values[414]) {
-		printf("[%s]: OFF: CHANGING THE VARIABLE! new value: (previously %llu) ---> NOW: %llu\n", string, previous, values[414]);
-		previous = values[414];
-		getchar();
-		printf("continue?\n");
-		getchar();
-	}
-}*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*if (op == st and val0 == output_name) { 
-			const nat n = val1;
-			nat length = memory[n + 0];
-			nat base = n + 1;
-			for (nat i = 0; i < length; i++) {
-				if (c >= 32 and c < 255) output_filename[i] = (char) c;
-				else print_error("invalid output name byte", c, pc, 0);
-				output_filename[i] = memory[base + i];
-			}
-		}*/
-
-
-/*
-
-
-const nat k = 0xffffffff;
-			
-			nat x0 = memory[assembler_arg0];
-			nat x1 = memory[assembler_arg1];
-			nat x2 = memory[assembler_arg2];
-			nat x3 = memory[assembler_arg3];
-			     if (n == system_load) x0 = *(byte*) x1;
-			else if (n == system_store) *(byte*) x0 = x1;
-			else if (n == system_exit) exit((int) x0);
-			else if (n == system_fork) x0 = (nat) fork();
-			else if (n == system_read) x0 = (nat) read((int) x0, (void*) x1, (size_t) x2);
-			else if (n == system_write) x0 = (nat) write((int) x0, (void*) x1, (size_t) x2);
-			else if (n == system_open) x0 = (nat) open((const char*) x0, (int) x1, (mode_t) x2);
-			else if (n == system_close) x0 = (nat) close((int) x0);
-			else if (n == system_mmap) x0 = (nat) (void*) mmap((void*) x0, (size_t) x1,
-				(int) (x2 & k), (int) ((x2 >> 32) & k), (int) (x3 & k),
-				(off_t) ((x3 >> 32) & k));
-			else if (n == system_munmap) x0 = (nat) munmap((void*) x0, (size_t) x1);
-			else print_error("invalid system call number", x0, pc, 0);
-			memory[assembler_arg0] = x0;
-			memory[assembler_arg1] = (nat) errno;
-
-
-
-
-*/
-
-
-
-/*	1202508052.033642
-	todo:
-
-	risc-v isa:
-
-		- switch the arguments source2.5 and immediate.12 in the "rs" instruction.
-			make the immediate be close to the source1 (the address)!!!!
-			this helps with readability more.
-
-	arm64 isa:
-
-	x	- Q: can the arm64 encoding listing be simplified?..
-			https://en.wikipedia.org/wiki/AArch64
-
-	x	- figure out how the load/stores work on arm64 again lol
-
-	risc-v compressed extension:
-
-		- add C extension to risc-v backend of this assembler!
-		- - after that:  edit the disassembler to take into account  the C extension
-		- - after that:  edit the virtual machine to take into account  the C extension
-
-
-	x	- make it use C extension instructions automatically by default, 
-		- - there is a programatic option called "compressed"    where you do:
-		- - -     "st compressed false"  (defaults to true)  when you want to use regular instructions always.
-		- - in the instruction itself, we store after the argument list  a "1" to denote if its compressed.
-
-x	assembler printing errors:
-
-		- add more error checking on the arguments for msp430 and arm64 instructions. 
-	
-		- completely overhaul how errors are printed:
-
-			1. store fileoffset information per argument and opcode for each instruction.
-
-			2. print out errors using a new function, which knows how to 
-				map a argument index and instruction index to a fileoffset, 
-				and print out the source code surrounding the bug in a very readable way. 
-					handle tabs and line wrappings, fix the output line length to 50 characters, 
-
-			3. make the assembler's errors extremely descriptive, for every error: 
-				show the values involved, have a dynamic way of giving multiple values 
-				to this error function. this function also exit(1)'s on error. 
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-			//printf("code generation error: unknown machine instruction \"%s\"\n", operations[op]);
-
-/*
-
-			const nat S = (a4 >> 2) & 1, option = a4 & 3;
-			nat opt = 0;
-			if (option == 0) opt = 2;
-			else if (option == 1) opt = 3;
-			else if (option == 2) opt = 6;
-			else if (option == 3) opt = 7;
-			else abort();
-			const nat is_load = (a0 >> 2) & 1;
-			const nat is_signed = (a0 >> 1) & 1;
-			const nat is_64_dest = (a0 >> 0) & 1;
-			nat opc = 0;
-			if (not is_load) opc = 0;
-			else if (a5 == 3) opc = 1;
-			else if (a5 == 2 and is_signed) opc = 2;
-			else if (a5 == 2 and not is_signed) opc = 1;
-			else if (not is_signed) opc = 1;
-			else if (not is_64_dest) opc = 3; 
-			else opc = 2;
-
-
-
-
-
-printf("output_bytes + %llu = %p\n", val1, (void*) (output_bytes + val1));
-			dump_hex(output_bytes, output_count);
-			printf("output_count = %llu\n", output_count);
-
-*/
-
-
-
-
-
-
-
-			// memi  uload.2  size.2  target_data.5  address.5  immediate.12
-
-
-
-			//orr op destination source1 negate source2 shift type shift amount
-			//orr op.0 destination.1 source1.2 negate.3 source2.4 shift_type.5 shift_amount.6
-
-
-
-
-
-
-
-
-
-
-/*for (nat s = 0; s < arg0; s++) {
-				in[0] = emit | (3LLU << 32LLU);
-				in[1] = 1;
-				in[2] = (nat) strings[arg1][s];
-			}*/
-
-
-
-
-/*
-
-
-1202508122.205823   :   a major change:
-
-
-	struct instruction {
-		nat op;    // byte
-		nat imm;   // byte
-		nat args[14];
-	};
-
-
-instead of this struct, we are going to use an array of  nat's  instead!!
-
-	ins[0]   is the   .op  and .imm fields.    the op is u32, and the imm field is u32.
-
-			*ins & 0xffff_ffff    gets the op 
-
-			*ins >> 32     gets the imm field.
-
-
-
-	ins[1] ... ins[15]  are the arguments.  (15 arguments maximum, for any machine instruction!)
-
-
-
-
-
-
-1202508122.210313
-actaully!!
-
-	i revised how i want to do   the riscv C extension!	
-
-		i want to add custom encoding formats, so that the programmer can make an informed decision about when they are using compressed instructions, and when they are not! 
-
-		that makes a ton more sense lol 
-
-
-			they will be called     rcb, rcmv   etc lol     all starting with r,  including a "c" usually 
-
-				makes sense lol    lets see how it goesss
-
-
-				
-
-
-
-
-actaully the instructions which we will add will be specically:
-
-           cr   ci   css    ciw     cl      cs     cb     cj
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//nat* rt_ins = calloc(max_instruction_count * 16, sizeof(nat));
-	//nat* rt_offsets = calloc(max_instruction_count * 16, sizeof(nat));
-	//nat* rt_mapping = calloc(max_instruction_count, sizeof(nat));
-	//nat rt_ins_count = 0
-	//memcpy(ins, rt_ins, rt_ins_count * sizeof(nat));
-	//memcpy(file_offset, rt_offsets, rt_ins_count * sizeof(nat));
-	//memcpy(file_mapping, rt_mapping, rt_ins_count / 2);
-	//ins_count = rt_ins_count;
-	//free(rt_ins);
-	//free(rt_offsets);
-
-
-
-
-
-
-
-
-
-
-
-static void check_for_errors(nat* in, nat at_pc) {
-
-	const nat op = get_op(ins[pc + 0]);
-	const nat a0 = ins[pc + 1];
-	const nat a1 = ins[pc + 2];
-	const nat a2 = ins[pc + 3];
-	const nat a3 = ins[pc + 4];
-	const nat a4 = ins[pc + 5];
-	const nat a5 = ins[pc + 6];
-	const nat a6 = ins[pc + 7];
-	const nat a7 = ins[pc + 8];
-
-	if (op == emit) {
-		if (a0 == 8) {
-		} else if (a0 == 4) {
-			if (a1 >= (1LLU << 32LLU)) print_error("invalid emit u32 data argument", a1, pc, 2);
-		} else if (a0 == 2) {
-			if (a1 >= (1LLU << 16LLU)) print_error("invalid emit u16 data argument", a1, pc, 2); 
-		} else if (a0 == 1) {
-			if (a1 >= (1LLU <<  8LLU)) print_error("invalid emit u8 data argument", a1, pc, 2);
-		} else print_error("invalid emit size, must be 1, 2, 4, or 8", a0, pc, 1);
-		
-	} else if (op == sect) {
-
-
-	} else if (op == rr) {
-
-
-	}
-
-}
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-			/*printf("error: at pc %llu invalid address given to "
-				"load from compiletime memory: 0x%016llx\n", 
-				pc, val1
-			);
-			print_instruction_window_around(pc, 1, "error");*/
-
-/*printf("error: at pc %llu invalid address given to "
-				"store to compiletime memory: 0x%016llx\n", 
-				pc, val0
-			);
-			print_instruction_window_around(pc, 1, "error");*/
-
-
-
-
-				// we need a  print_parse_error(file, begin, end) function, 
-
-				// which will be seperate from  print_error(bad, pc, arg) function, which accepts the instruction index, and argument index. and also the value that was erroneous
-
-				// we will call ppe  while parsing, and call pe everywhere else. 
-
-				// we still need to store the fileoffset information of each op/arg for each ins, while parsing. along with args, we need an offsets[] array. i think. we then push this to the master file_offsets and file_mappings array once we push the isntruction. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*static void print_index(const char* text, nat text_length, nat begin, nat end) {
-	printf("\n\t@%llu..%llu: ", begin, end); 
-	while (end and isspace(text[end])) end--;
-	const nat max_width = 100;
-	nat start_at = begin < max_width ? 0 : begin - max_width;
-	nat end_at = end + max_width >= text_length 
-		? text_length : end + max_width;
-	for (nat i = start_at; i < end_at; i++) {
-		if (i == begin) printf("\033[32;1m[");
-		putchar(text[i]);
-		if (i == end) printf("]\033[0m");
-	}	
-	printf("\033[0m");
-	puts("\n");
-}*/
-
-/*noreturn static void print_error(
-	const char* message, 
-	const char* filename, 
-	char* text, nat text_length, 
-	nat begin, nat end
-) {
-	printf("%s:%llu:%llu: error: %s\n", filename, begin, end, message);  
-	print_index(text, text_length, begin, end);
-	abort();
-}*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*noreturn static void print_error(
-	const char* message, 
-	const char* filename, 
-	char* text, nat text_length, 
-	nat begin, nat end
-) {
-	printf("%s:%llu:%llu: error: %s\n", filename, begin, end, message);  
-	print_index(text, text_length, begin, end);
-	abort();
-}
-
-
-static void print_index(const char* text, nat text_length, nat begin, nat end) {
-	printf("\n\t@%llu..%llu: ", begin, end); 
-	while (end and isspace(text[end])) end--;
-	const nat max_width = 100;
-	nat start_at = begin < max_width ? 0 : begin - max_width;
-	nat end_at = end + max_width >= text_length 
-		? text_length : end + max_width;
-	for (nat i = start_at; i < end_at; i++) {
-		if (i == begin) printf("\033[32;1m[");
-		putchar(text[i]);
-		if (i == end) printf("]\033[0m");
-	}	
-	printf("\033[0m");
-	puts("\n");
-}
-
-
-
-	const nat max_width = 100;
-
-	nat start_at = begin < max_width ? 0 : begin - max_width;
-
-	nat end_at = end + max_width >= text_length 
-		? text_length : end + max_width;
-
-	for (nat i = start_at; i < end_at; i++) {
-		if (i == begin) printf("\033[32;1m[");
-		putchar(text[i]);
-		if (i == end) printf("]\033[0m");
-	}	
-
-	printf("\033[0m");
-	puts("\n");
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-msp430_generate_machine_code:;
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		if (debug) {
-			print_instruction_window_around(i, 0, "");
-			puts("");
-			dump_hex(output_bytes, output_count);
-			getchar();	
-		}
-
-		const nat op = ins[i].op;
-		const nat a0 = ins[i].args[0];
-		const nat a1 = ins[i].args[1];
-		const nat a2 = ins[i].args[2];
-		const nat a3 = ins[i].args[3];
-		const nat a4 = ins[i].args[4];
-		const nat a5 = ins[i].args[5];
-		const nat a6 = ins[i].args[6];
-		const nat a7 = ins[i].args[7];
-
-		if (op == emit) {
-			if (a0 == 8) insert_u64(a1);
-			else if (a0 == 4) {
-				if (a1 >= (1LLU << 32LLU)) { puts("error: invalid emit u32 data argument"); abort(); }
-				insert_u32((u32) a1);
-			}
-			else if (a0 == 2) {
-				if (a1 >= (1LLU << 16LLU)) { puts("error: invalid emit u16 data argument"); abort(); }
-				insert_u16((u16) a1);
-			}
-			else if (a0 == 1) {
-				if (a1 >= (1LLU << 8LLU)) { puts("error: invalid emit u8 data argument"); abort(); }
-				insert_byte((byte) a1);
-
-			} else { puts("error: invalid emit size, must be 1, 2, 4, or 8."); abort(); } 
-
-		} else if (op == sect) {
-			section_addresses[section_count] = a0;
-			section_starts[section_count++] = output_count;
-
-		} else if (op == mb) {
-			const nat offset = 0x3FF & (a1 - output_count);
-			const nat word = ((1LLU << 13LLU) | (a0 << 10LLU) | (offset));
-			insert_u16((u16) word);
-		}
-		else if (op == mo) {
-			nat word = (
-				(a0 << 12LLU) | (a5 << 8LLU) | (a1 << 7LLU) |
-				(a7 << 6LLU) | (a4 << 4LLU) | (a2)
-			);
-			insert_u16((u16) word);
-			if ((a4 == 1 and (a5 != 2 and a5 != 3))
-				or (a4 == 3 and not a5)) insert_u16((u16) a6);
-			if (a1 == 1) insert_u16((u16) a3);
-		} else {
-			printf("msp430: error: unknown machine instruction \"%s\"\n", operations[op]);
-			print_instruction_window_around(i, 1, "");
-			abort();
-		}
-	}
-	goto finished_generation;
-
-arm64_generate_machine_code:; 
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		if (debug) {
-			print_instruction_window_around(i, 0, "");
-			puts("");
-			dump_hex(output_bytes, output_count);
-			getchar();
-		}
-
-		const nat op = ins[i].op;
-		const nat a0 = ins[i].args[0];
-		const nat a1 = ins[i].args[1];
-		const nat a2 = ins[i].args[2];
-		const nat a3 = ins[i].args[3];
-		const nat a4 = ins[i].args[4];
-		const nat a5 = ins[i].args[5];
-		const nat a6 = ins[i].args[6];
-		const nat a7 = ins[i].args[7];
-
-		if (op == emit) {
-			if (a0 == 8) insert_u64(a1);
-			else if (a0 == 4) {
-				if (a1 >= (1LLU << 32LLU)) { puts("error: invalid emit u32 data argument"); abort(); }
-				insert_u32((u32) a1);
-			}
-
-			else if (a0 == 2) {
-				if (a1 >= (1LLU << 16LLU)) { puts("error: invalid emit u16 data argument"); abort(); }
-				insert_u16((u16) a1);
-			}
-
-			else if (a0 == 1) {
-				if (a1 >= (1LLU << 8LLU)) { puts("error: invalid emit u8 data argument"); abort(); }
-				insert_byte((byte) a1);
-
-			} else { puts("error: invalid emit size, must be 1, 2, 4, or 8."); abort(); } 
-
-		} else if (op == sect) {
-			section_addresses[section_count] = a0;
-			section_starts[section_count++] = output_count;
-
-		} else if (op == clz) { puts("clz is unimplemented currently, lol"); abort(); }
-		else if (op == rev) { puts("rev is unimplemented currently, lol"); abort(); }
-		else if (op == extr) { puts("extr is unimplemented currently, lol"); abort(); }
-		else if (op == ldrl) { puts("ldrl is unimplemented currently, lol"); abort(); }
-		else if (op == nop) insert_u32(0xD503201F);
-		else if (op == svc) insert_u32(0xD4000001);
-
-		else if (op == br) {
-			nat l = a2 ? 2 : a1 ? 1 : 0;
-			const nat word = 
-				(0x6BU << 25U) | (l << 21U) | 
-				(0x1FU << 16U) | (a0 << 5U);
-			insert_u32((u32) word);
-
-		} else if (op == adc) {
-			const nat word = 
-				(a5 << 31U) | (a4 << 30U) | (a3 << 29U) | 
-				(0xD0 << 21U) | (a2 << 16U) | (0 << 19U) |
-				(a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == shv) {
-			uint32_t op2 = 8;
-			if (a3 == 0) op2 = 8;
-			if (a3 == 1) op2 = 9;
-			if (a3 == 2) op2 = 10;
-			if (a3 == 3) op2 = 11;
-			const nat word = 
-				(a4 << 31U) | (0 << 30U) | 
-				(0 << 29U) | (0xD6 << 21U) | 
-				(a2 << 16U) | (op2 << 10U) |
-				(a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == mov) {
-			if (a4 >= (1LLU << 1LLU)) { puts("mov a4 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a3 >= (1LLU << 2LLU)) { puts("mov a3 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a2 >= (1LLU << 2LLU)) { puts("mov a2 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a1 >= (1LLU << 16LLU)) { puts("mov a1 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a0 >= (1LLU << 5LLU)) { puts("mov a0 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			const nat word = 
-				(a4 << 31U) | (a3 << 29U) | (0x25U << 23U) |
-				(a2 << 21U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == bc) {
-			const nat offset = 0x7ffff & (((int64_t) a1 - (int64_t) output_count) >> 2LL);
-			const nat word = (0x54U << 24U) | (offset << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == jmp) {
-			const nat offset = 0x3ffffff & (((int64_t) a1 - (int64_t) output_count) >> 2LL);
-			const nat word = (a0 << 31U) | (0x5U << 26U) | (offset);
-			insert_u32((u32) word);
-
-		} else if (op == adr) {
-			nat o1 = a2;
-			nat count = a1 - output_count;
-			if (a2) count /= 4096;
-			const nat offset = 0x1fffff & count;
-			const nat lo = offset & 3, hi = offset >> 2;
-			const nat word = 
-				(o1 << 31U) | (lo << 29U) | (0x10U << 24U) |
-				(hi << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == cbz) {
-			const nat offset = 0x7ffff & (a1 - output_count);
-			const nat word = 
-				(a3 << 31U) | (0x1AU << 25U) | 
-				(a2 << 24U) | (offset << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == tbz) {
-			const nat b40 = a1 & 0x1F;
-			const nat b5 = a1 >> 5;
-			const nat offset = 0x3fff & (a2 - output_count);
-			const nat word = 
-				(b5 << 31U) | (0x1BU << 25U) | (a3 << 24U) |
-				(b40 << 19U) |(offset << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == ccmp) {
-			const nat word = 
-				(a6 << 31U) | (a4 << 30U) | (0x1D2 << 21U) | 
-				(a3 << 16U) | (a0 << 12U) | (a2 << 11U) | 
-				(a1 << 5U) | (a5); 
-			insert_u32((u32) word);
-
-		} else if (op == addi) {
-
-			if (a6 >= (1LLU << 1LLU)) { puts("addi a6 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a5 >= (1LLU << 1LLU)) { puts("addi a5 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a4 >= (1LLU << 1LLU)) { puts("addi a4 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a3 >= (1LLU << 1LLU)) { puts("addi a3 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a2 >= (1LLU << 12LLU)) { puts("addi a2 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a1 >= (1LLU << 5LLU)) { puts("addi a1 error"); print_instruction_window_around(i, 1, ""); abort(); }
-			if (a0 >= (1LLU << 5LLU)) { puts("addi a0 error"); print_instruction_window_around(i, 1, ""); abort(); }
-
-			const nat word = 
-				(a6 << 31U) | (a5 << 30U) | (a4 << 29U) | 
-				(0x22 << 23U) | (a3 << 22U) | (a2 << 10U) |
-				(a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == addr) {
-
-			if (a7 >= (1LLU << 1LLU)) { puts("addr error"); abort(); }
-			if (a6 >= (1LLU << 1LLU)) { puts("addr error"); abort(); }
-			if (a5 >= (1LLU << 1LLU)) { puts("addr error"); abort(); }
-			if (a3 >= (1LLU << 2LLU)) { puts("addr error"); abort(); }
-			if (a4 >= (1LLU << 6LLU)) { puts("addr error"); abort(); }
-			if (a2 >= (1LLU << 5LLU)) { puts("addr error"); abort(); }
-			if (a1 >= (1LLU << 5LLU)) { puts("addr error"); abort(); }
-			if (a0 >= (1LLU << 5LLU)) { puts("addr error"); abort(); }
-
-			const nat word = 
-				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
-				(0xB << 24U) | (a3 << 22U) | (a2 << 16U) |
-				(a4 << 10U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == addx) {
-			const nat word = 
-				(a7 << 31U) | (a6 << 30U) | (a5 << 29U) | 
-				(0x59 << 21U) | (a2 << 16U) | (a3 << 13U) | 
-				(a4 << 10U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == divr) {
-			const nat word = 
-				(a4 << 31U) | (0xD6 << 21U) | (a2 << 16U) |
-				(1 << 11U) | (a3 << 10U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == csel) {
-			const nat word = 
-				(a6 << 31U) | (a5 << 30U) | (0xD4 << 21U) | 
-				(a2 << 16U) | (a3 << 12U) | (a4 << 10U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == madd) {
-			const nat word = 
-				(a7 << 31U) | (0x1B << 24U) | (a5 << 23U) |
-				(a4 << 21U) | (a2 << 16U) | (a6 << 15U) |
-				(a3 << 10U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == bfm) {
-			nat imms = 0, immr = 0;
-			if (not a2) { imms = a3 + a4 - 1; immr = a3; } 
-			else { imms = a4 - 1; immr = (a6 ? 64 : 32) - a3; }
-			const nat word = (a6 << 31U) | (a5 << 29U) | 	
-				(0x26U << 23U) | (a6 << 22U) | (immr << 16U) |
-				(imms << 10U) | (a1 << 5U) | (a0);
-			insert_u32((u32) word);
-
-		} else if (op == ori) { // TODO: implement this instruction
-
-			puts("TODO: please implemented the ori instruction: "
-				"this is the last instruction we need to implement "
-				"and then we are done with iplemementing the arm64 backend!"
-			);
-
-			abort();
-
-		} else if (op == orr) {
-			const nat word = 
-				(a7 << 31U) | (a0 << 29U) | (10 << 24U) | 
-				(a4 << 22U) | (a6 << 21U) | (a3 << 16U) | 
-				(a5 << 10U) | (a2 << 5U) | (a1);
-			insert_u32((u32) word);
-
-		} else if (op == memp) {
-			const nat word = 
-				(a1 << 30U) | (0x14 << 25U) | (a6 << 23U) | (a0 << 22U) | 
-				(a5 << 15U) | (a3 << 10U) | (a4 << 5U) | (a2);
-			insert_u32((u32) word);
-
-		} else if (op == memi) {
-			const nat is_load = (a0 >> 2) & 1;
-			const nat is_signed = (a0 >> 1) & 1;
-			const nat is_64_dest = (a0 >> 0) & 1;
-			nat opc = 0;
-			if (not is_load) opc = 0;
-			else if (a4 == 3) opc = 1;
-			else if (a4 == 2 and is_signed) opc = 2;
-			else if (a4 == 2 and not is_signed) opc = 1;
-			else if (not is_signed) opc = 1;
-			else if (not is_64_dest) opc = 3; 
-			else opc = 2;
-			const nat word = 
-				(a4 << 30U) | (0x39 << 24U) | (opc << 22U) |
-				(a3 << 10U) | (a2 << 5U) | (a1);
-			insert_u32((u32) word);
-
-		} else if (op == memia) { 			
-			const nat is_load = (a0 >> 2) & 1;
-			const nat is_signed = (a0 >> 1) & 1;
-			const nat is_64_dest = (a0 >> 0) & 1;
-			nat opc = 0;
-			if (not is_load) opc = 0;
-			else if (a4 == 3) opc = 1;
-			else if (a4 == 2 and is_signed) opc = 2;
-			else if (a4 == 2 and not is_signed) opc = 1;
-			else if (not is_signed) opc = 1;
-			else if (not is_64_dest) opc = 3; 
-			else opc = 2;
-			const nat word = 
-				(a4 << 30U) | (0x38 << 24U) | (opc << 22U) | (a3 << 12U) | 
-				(a5 << 11U) | (1 << 10U) | (a2 << 5U) | (a1);
-			insert_u32((u32) word);
-
-		} else if (op == memr) { 
-			const nat S = (a4 >> 2) & 1, option = a4 & 3;
-			nat opt = 0;
-			if (option == 0) opt = 2;
-			else if (option == 1) opt = 3;
-			else if (option == 2) opt = 6;
-			else if (option == 3) opt = 7;
-			else abort();
-			const nat is_load = (a0 >> 2) & 1;
-			const nat is_signed = (a0 >> 1) & 1;
-			const nat is_64_dest = (a0 >> 0) & 1;
-			nat opc = 0;
-			if (not is_load) opc = 0;
-			else if (a5 == 3) opc = 1;
-			else if (a5 == 2 and is_signed) opc = 2;
-			else if (a5 == 2 and not is_signed) opc = 1;
-			else if (not is_signed) opc = 1;
-			else if (not is_64_dest) opc = 3; 
-			else opc = 2;
-			const nat word = 
-				(a5 << 30U) | (0x38 << 24U) | (opc << 22U) |
-				(1 << 21U) | (a3 << 16U) | (opt << 13U) |
-				(S << 12U) | (2 << 10U) | (a2 << 5U) | (a1);
-			insert_u32((u32) word);
-
-		} else {
-			printf("arm64: error: unknown machine instruction \"%s\"\n", operations[op]);
-			print_instruction_window_around(i, 1, "");
-			abort();
-		}
-	}
-
-
-finished_generation:;
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*static void print_nats(nat* array, nat count) {
-	printf("(%llu) { ", count);
-	for (nat i = 0; i < count; i++) {
-		printf("%lld ", array[i]);
-	}
-	printf("}");
-}*/
-
-
-
-
-	/*puts("");
-	puts("bytes: ");
-	for (nat i = 0; i < count; i++) {
-		if (i % 32 == 0) puts("");
-		if (data[i]) printf("\033[32;1m");
-		printf("%02hhx ", data[i]);
-		if (data[i]) printf("\033[0m");
-	}
-	puts("");*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	/*for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-		
-		continue;
-	mixed_target_error:
-		printf("error: mixed-target instruction encountered: "
-			"[target = %s]\n", 
-			target_arch == riscv_arch ? "riscv_arch" : 
-			target_arch == msp430_arch ? "msp430_arch" : 
-			target_arch == arm64_arch ? "arm64_arch" : "unknown"
-		); 
-		print_instruction_window_around(i, 1, "");
-		abort();
-	}	*/
-
-
-
-
-
-
-
-
-
-
-
-
-/*if (op == st and val0 == compiler_length) {
-			for (nat i = 0; i < string_list_count; i++) {
-				if (string_label[i] == val1) { 
-					memory[compiler_length] = strlen(string_list[i]); 
-					goto found_string;
-				}
-			}
-			memory[compiler_length] = (nat) -1; found_string:;
-		}*/
-
-/*
-
-TRASH:
----------------
-
-
-//static const nat uninitialized_variable = 	(nat) -1;
-//static const nat is_label = 			0x8000000000000000;
-//static const nat is_ct_label = 			0x4000000000000000;
-
-*/
-/*static nat compute_label_location(nat label) {
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at and ins[i].args[0] == label) return i;
-	}
-	printf("error: could not compute label location for label: %s(0x%016llx)\n", 
-		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
-		label
-	);
-	abort();
-}*/
-
-/*static nat calculate_offset(nat* length, nat here, nat label) {
-
-	if (not (label & is_label)) { puts("error: calculate_offset(): was passed a nonlabel: "); printf("error: could not compute label location for label: %s(0x%016llx)\n", 
-		label < var_count ? variables[label] : "(OUTSIDE VAR RANGE)", 
-		label
-	); abort(); } 
-	
-	const nat target = compute_label_location(label & ~is_label);
-
-	nat offset = 0;
-	if (target > here) {
-		for (nat i = here; i < target; i++) {
-			if (i >= ins_count) {
-				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
-					"[ins_count = %llu]: tried to index %lld into lengths, "
-					"aborting..\n", here, target, ins_count, i
-				);
-				print_nats(length, ins_count);
-				abort();			
-			}
-			offset += length[i];
-		}
-	} else {
-		for (nat i = target; i < here; i++) {
-			if (i >= ins_count) {
-				printf("fatal error: calculate_offset(lengths, %lld, %lld): "
-					"[ins_count = %llu]:  tried to index %lld into lengths, "
-					"aborting..\n", here, target, ins_count, i
-				);
-				print_nats(length, ins_count);
-				abort();			
-			}		
-			offset -= length[i];
-		}
-	}
-	return offset;
-}*/
-
-
-
-			//op == ru and arg_count == 2
-			//op == rs and arg_count == 4 or
-			//op == ri and arg_count == 4
-
-	//TODO: figure out a way to delete this variable lol.
-	//bool should_check[192390] = {0}; // TODO: make this sized max_variable_count, global. 
-
-
-	/*for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op, e = ins[i].args[0];
-		if (op == at) values[e] = i;
-		//(values[e] & is_ct_label) ? i : e | is_label;
-	}*/
-			
-
-	/*nat label_count[4096] = {0};
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at) label_count[ins[i].args[0]]++;
-	}
-
-	for (nat i = 0; i < ins_count; i++) {
-		for (nat a = 0; a < arity[ins[i].op]; a++) {
-			const nat this = ins[i].args[a];
-			if (not ((ins[i].imm >> a) & 1) and label_count[this] != 1) {
-				printf("error: instruction %s, argument #%llu, expected exactly one label attribution, "
-					"but found label count = %llu for variable %s\n", 
-					operations[ins[i].op], a, 
-					label_count[this], variables[this]
-				);
-				print_instruction_window_around(i, 1, "incorrect label attribution for this argument");
-				abort();
-			}
-		}
-	}*/
-
-
-		/*if (op == at) for (nat i = 0; i < fixup_count; i++) {
-			if (fixup_var[i] == arg0) {
-				rt_ins[fixup_ins[i]].args[fixup_arg[i]] = total_byte_count;
-				fixup_var[i] = (nat) -1;
-			}
-		}*/
-
-		//if (op == del) {			
-			//is_undefined[arg0] = var_count;
-			//is_undefined[var_count] = (nat) -1;
-			//variables[var_count++] = strdup("_generated_");
-			//abort();
-
-
-
-
-
-
-/*if (values[this] == (nat) -1) { 
-						printf("WARNING: FOUND A FORWARD BRANCH RUNTIME INSTRUCTION. "
-							"BRANCHING FORWARDS TO \"%s\"\n", 
-							variables[this]
-						);
-						printf("uhh...not sure what to do here...?");
-						abort();
-						
-						//fixup_ins[fixup_count] = rt_ins_count;
-						//fixup_arg[fixup_count] = a;
-						//fixup_var[fixup_count++] = this;
-
-						//printf("info: just pushed a new fixup: (fixupcount %llu) {.arg = %llu, .ins = %llu}\n", 
-							//fixup_count, a, rt_ins_count
-						//);
-						//getchar();
-					}*/
-
-
-
-		//} else if () {
-			//struct instruction new = ins[pc];
-			//if (is_undefined[arg0] != (nat) -1) new.args[0] = is_undefined[arg0];
-			//values[rt_label]
-
-
-
-	/*nat* lengths = calloc(ins_count, sizeof(nat));
-	for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-
-		if (op == at) lengths[i] = 0;
-		else if (op == sect) lengths[i] = 0;
-		else if (op == emit) lengths[i] = ins[i].args[0];
-		else lengths[i] = 4;
-	}*/
-
-	//print_nats(lengths, ins_count); puts("");
-
-
-
-
-
-			//if (not k and (a4 & is_label)) {} else 
-
-
-//nat k = a4;
-
-			/*if (k & is_label) {
-				const nat im = calculate_offset(lengths, i - 1, k) & 0x00000FFF;
-				k = im;
-			}*/
-
-
-
-/*
-
-nat* lengths = calloc(ins_count, sizeof(nat));
-	for (nat i = 0; i < ins_count; i++) {
-		if (ins[i].op == at or ins[i].op == sect) continue;
-		lengths[i] = ins[i].op == emit ? ins[i].args[0] : 4;
-	}
-
-	print_nats(lengths, ins_count); puts("");
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-				//if (not (values[this] & is_label)) 
-				//else if (is_undefined[this] != (nat) -1) new.args[a] = is_undefined[this];
-				//else new.args[a] = values[this];
-
-	/*for (nat i = 0; i < ins_count; i++) {
-		const nat op = ins[i].op;
-		if (op == lt or op == eq) values[ins[i].args[2]] &= execute_mask;
-	}	
-	for (nat i = 0; i < var_count; i++) if (values[i] & is_label) values[i] = i | is_label;
-	*/
-	
-
-
-
-/*
-
-if (	op == zero or op == incr or 
-				op == set or op == st or 
-				op == sect) is_constant[args[0]] = 1;
-			else if (op == emit or (op >= add and <= ld) {
-				is_constant[args[0]] = 1;
-				is_constant[args[1]] = 1;
-			} else if (op == lt or op == eq) {
-				is_constant[args[0]] = 1;
-				is_constant[args[1]] = 1;
-				is_constant[args[2]] = 1;
-			}
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-generate_c_source_output:;
-
-	{ char* out = malloc(my_count);
-	memcpy(out, my_bytes, my_count);
-	nat len = my_count;
-
-	printf("about to write out: \n-------------------\n<<<%.*s>>>\n----------------\n", (int) len, out);
-	printf("writing c source code file...\n");
-	fflush(stdout);
-
-	if (not access(output_filename, F_OK)) {
-		printf("file exists. do you wish to remove the previous one? (y/n) ");
-		fflush(stdout);
-		if (should_overwrite or getchar() == 'y') {
-			printf("file %s was removed.\n", output_filename);
-			int r = remove(output_filename);
-			if (r < 0) { perror("remove"); exit(1); }
-		} else {
-			puts("not removed, compilation aborted.");
-		}
-	}
-
-	{ int file = open(output_filename, O_WRONLY | O_CREAT | O_EXCL, 0666);
-	if (file < 0) { perror("open: could not create executable file"); exit(1); }
-	write(file, out, len);
-	close(file); }
-
-	printf("c source output: wrote %llu bytes to file %s.\n", len, output_filename);
-
-	{ char debug_string[4096] = {0};
-	snprintf(debug_string, sizeof debug_string, 
-		"clang -Weverything -Wno-unused-label -Wno-poison-system-directories -O3 %s",
-		output_filename
-	);
-	system(debug_string); } } 
-
-	goto finished_outputting;
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-c_generate_source_code:;
-
-	{ 
-
-	const char* header = 
-	"// c source file auto-generated by my compiler.\n"
-	"#include <stdlib.h>\n"
-	"#include <unistd.h>\n"
-	"#include <fcntl.h>\n"
-	"#include <sys/mman.h>\n"
-	"#include <stdio.h>\n"
-	"#include <errno.h>\n"
-	"#include <stdint.h>\n"
-	"\n"
-	"static uint64_t x[4096];\n"
-	"\n"
-	"static void ecall(void) {\n"
-	"\tif (x[0] == 0) printf(\"debug: hello: %llu (0x%llx)\\n\", x[1], x[1]);\n"
-	"\telse if (x[0] == 1) exit((int) x[1]);\n"
-	"\telse if (x[0] == 2) { x[1] = (uint64_t) read((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }\n"
-	"\telse if (x[0] == 3) { x[1] = (uint64_t) write((int) x[1], (void*) x[2], (size_t) x[3]); x[2] = (uint64_t) errno; }\n"
-	"\telse if (x[0] == 4) { x[1] = (uint64_t) open((const char*) x[1], (int) x[2], (mode_t) x[3]); x[2] = (uint64_t) errno; }\n"
-	"\telse if (x[0] == 5) { x[1] = (uint64_t) close((int) x[1]); x[2] = (uint64_t) errno; }\n"
-	"\telse if (x[0] == 6) { x[1] = (uint64_t) (void*) mmap((void*) x[1], (size_t) x[2], (int) x[3],"
-				" (int) x[4], (int) x[5], (off_t) x[6]); x[2] = (uint64_t) errno; }\n"
-	"\telse if (x[0] == 7) { x[1] = (uint64_t) munmap((void*) x[1], (size_t) x[2]); x[2] = (uint64_t) errno; }\n"
-	"\telse abort();\n"
-	"}\n\n";
-
-	const char* footer = 
-		"}\n// (end of file)\n\n"
-	;
-
-	{ char str[4096] = {0};
-	const nat len = (nat) snprintf(str, sizeof str, "%s", header);
-	insert_bytes(&my_bytes, &my_count, str, len); } 
-
-	nat* label_data_locations = calloc(var_count, sizeof(nat));
-
-	uint8_t data_bytes[64000] = {0};
-	nat data_byte_count = 0;
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		if (debug) {
-			print_instruction_window_around(i, 0, "");
-			puts("");
-			dump_hex(data_bytes, data_byte_count);
-			getchar();
-		}
-
-		const nat op = ins[i].op;
-		const nat a0 = ins[i].args[0];
-		const nat a1 = ins[i].args[1];
-
-		if (op == at) {
-			label_data_locations[a0] = data_byte_count;
-
-		} else if (op == emit) {
-			if (a0 == 8) {
-				data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 8) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 16) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 24) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 32) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 40) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 48) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 56) & 0xff;
-			}
-
-			if (a0 == 4) {
-				data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 8) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 16) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 24) & 0xff;
-
-			}
-
-			if (a0 == 2) {
-				data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;
-				data_bytes[data_byte_count++] = (a1 >> 8) & 0xff;
-			}
-
-			if (a0 == 1) data_bytes[data_byte_count++] = (a1 >> 0) & 0xff;;
-		}
-	}
-
-	{ char str[4096] = {0};
-	const nat len = (nat) snprintf(str, sizeof str, "static uint8_t d[%llu] = {\n\t", data_byte_count);
-	insert_bytes(&my_bytes, &my_count, str, len); } 
-
-	for (nat i = 0; i < data_byte_count; i++) {
-		char str[4096] = {0};
-		const nat len = (nat) snprintf(str, sizeof str, "0x%02x,%s", data_bytes[i], i % 8 == 7 ? "\n\t" : " ");
-		insert_bytes(&my_bytes, &my_count, str, len);
-	}
-	
-	{ char str[4096] = {0};
-	const nat len = (nat) snprintf(str, sizeof str, "\n};\n\nint main(void) {\n");
-	insert_bytes(&my_bytes, &my_count, str, len); } 
-
-	for (nat i = 0; i < ins_count; i++) {
-
-		if (debug) {
-			print_instruction_window_around(i, 0, "");
-			puts("");
-			printf("C source code: \n<<<%.*s>>>\n", (int) my_count, (char*) my_bytes);
-			getchar();
-		}
-
-		const nat op = ins[i].op;
-		const nat a0 = ins[i].args[0];
-		const nat a1 = ins[i].args[1];
-		//const nat a2 = ins[i].args[2];
-
-		if (op == sect) {}
-
-		else if (op == ri and a0 == 0x73) {
-			char str[4096] = {0};
-			const nat len = (nat) snprintf(str, sizeof str, "\tecall();\n");
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == emit) {}
-
-		else if (op == at) {
-			char str[4096] = {0};
-			const nat len = (nat) snprintf(str, sizeof str, "_%llu:;\n", a0);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == do_) {
-			char str[4096] = {0};
-			const nat len = (nat) snprintf(str, sizeof str, "\tgoto _%llu;\n", a0);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-
-		} else if (op == set) { //not imm and is_label[a1]
-			char str[4096] = {0}; nat len = 0;
-			len = (nat) snprintf(str, sizeof str, "\tx[%llu] = ((uint64_t)(void*)d) + 0x%llx;\n", a0, label_data_locations[a1]);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		}
-
-	 
-
-		else if (op == set) {
-
-			//if (a0 == a1 and not imm) continue;
-
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] = 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == add) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] += 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] += x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == sub) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] -= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == mul) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] *= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == div_) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] /= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == rem) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] %%= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == and_) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] &= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == or_) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] |= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == eor) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] ^= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == si) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] <<= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == sd) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm) len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= 0x%llx;\n", a0, a1);
-			else len = (nat) snprintf(str, sizeof str, "\tx[%llu] >>= x[%llu];\n", a0, a1);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-
-		} else if (op == st) {
-			
-			if (a2 == 8) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
-				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint64_t*)(x[%llu]) = 0x%llx;\n", a0, a1);
-				else len = (nat) snprintf(str, sizeof str, "\t*(uint64_t*)(x[%llu]) = x[%llu];\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else if (a2 == 1) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
-				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint8_t*)(x[%llu]) = (uint8_t) 0x%llx;\n", a0, a1);
-				else len = (nat) snprintf(str, sizeof str, "\t*(uint8_t*)(x[%llu]) = (uint8_t) x[%llu];\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else if (a2 == 2) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
-				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint16_t*)(x[%llu]) = (uint16_t) 0x%llx;\n", a0, a1);
-				else len = (nat) snprintf(str, sizeof str, "\t*(uint16_t*)(x[%llu]) = (uint16_t) x[%llu];\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else if (a2 == 4) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 1) { puts("error: cannot store to an immediate address in c\n"); abort(); }
-				else if (imm) len = (nat) snprintf(str, sizeof str, "\t*(uint32_t*)(x[%llu]) = (uint32_t) 0x%llx;\n", a0, a1);
-				else len = (nat) snprintf(str, sizeof str, "\t*(uint32_t*)(x[%llu]) = (uint32_t) x[%llu];\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else { puts("unimplemented"); abort(); } 
-
-
-		} else if (op == ld) {
-
-			if (a2 == 8) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
-				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = *(uint64_t*)(x[%llu]);\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else if (a2 == 1) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
-				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = (uint64_t) (*(uint8_t*)(x[%llu]));\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else if (a2 == 2) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
-				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = (uint64_t) (*(uint16_t*)(x[%llu]));\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else if (a2 == 4) {
-				char str[4096] = {0}; nat len = 0;
-				if (imm & 3) { puts("error: cannot load from an immediate address in c\n"); abort(); }
-				else len = (nat) snprintf(str, sizeof str, "\tx[%llu] = (uint64_t) (*(uint32_t*)(x[%llu]));\n", a0, a1);
-				insert_bytes(&my_bytes, &my_count, str, len);
-
-			} else { puts("unimplemented"); abort(); } 
-
-
-		} else if (op == lt) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx < x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < 0x%llx) goto _%llu;\n", a0, a1, a2);
-			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] < x[%llu]) goto _%llu;\n", a0, a1, a2);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == ge) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx >= x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >= 0x%llx) goto _%llu;\n", a0, a1, a2);
-			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] >= x[%llu]) goto _%llu;\n", a0, a1, a2);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == ne) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx != x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != 0x%llx) goto _%llu;\n", a0, a1, a2);
-			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] != x[%llu]) goto _%llu;\n", a0, a1, a2);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else if (op == eq) {
-			char str[4096] = {0}; nat len = 0;
-			if (imm & 1) len = (nat) snprintf(str, sizeof str, "\tif (0x%llx == x[%llu]) goto _%llu;\n", a0, a1, a2);
-			else if (imm & 2) len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] == 0x%llx) goto _%llu;\n", a0, a1, a2);
-			else len = (nat) snprintf(str, sizeof str, "\tif (x[%llu] == x[%llu]) goto _%llu;\n", a0, a1, a2);
-			insert_bytes(&my_bytes, &my_count, str, len);
-
-		} else {
-			printf("error: unknown C machine instruction op=\"%s\"\n", operations[op]);
-			abort();
-		}
-
-		abort();
-	}
-
-	char str[4096] = {0};
-	const nat len = (nat) snprintf(str, sizeof str, "%s", footer);
-	insert_bytes(&my_bytes, &my_count, str, len); 
-
-	}
-
-	goto finished_generation;
-
-
-
-
-
-
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	/*for (nat i = 0; i < var_count; i++) {
-		if (max_name_width < (int) strlen(variables[i])) {
-			max_name_width = (int) strlen(variables[i]);
-		}
-	}*/
-
-
-
-
-
-
-
-
-
-
-			//printf("decimal: im = %d\n", im | ((im & (1 << 21)) ? 0xFFE00000 : 0));
-			//printf("binary: "); print_binary(im | ((im & (1 << 21)) ? 0xFFE00000 : 0)); puts("");
-			//printf("j_type:  offset = 0x%08x\n", offset);
-			//printf("offset = "); print_binary(offset); puts("");
-			//getchar();
-	
-
-			//printf("decimal: im = %d\n", im | ((im & (1 << 12)) ? 0xFFFFE000 : 0));
-			//printf("decimal: "); print_binary(im | ((im & (1 << 12)) ? 0xFFFFE000 : 0)); puts("");
-			//printf("b_type:  im = 0x%08x, lo = 0x%08x, hi = 0x%08x\n", im, lo, hi);
-			//printf("im = "); print_binary(im); puts("");
-			//printf("lo = "); print_binary(lo); puts("");
-			//printf("hi = "); print_binary(hi); puts("");
-			//getchar();
-
-
-
-
-
-
-
-/* 1202507174.220252
-
-		we are currently i the middle of sorting out how execution passing through a del causes the regeneration of a label, 
-
-				and we are trying to figure out how to make it so that we don't need to add another
-
-										at label 
-
-
-							instruction 
-
-
-					i think its possible lol. 
-
-
-*/
-
-
-
-
-
-
-/*
-
-
-
-			
-
-
-
-else if (op == sc) {
-
-			nat x0 = *(((nat*) bridge) + compiler_arg0);
-			nat x1 = *(((nat*) bridge) + compiler_arg1);
-			nat x2 = *(((nat*) bridge) + compiler_arg2);
-			nat x3 = *(((nat*) bridge) + compiler_arg3);
-			nat x4 = *(((nat*) bridge) + compiler_arg4);
-			nat x5 = *(((nat*) bridge) + compiler_arg5);
-			nat x6 = *(((nat*) bridge) + compiler_arg6);
-
-			if (x0 == compiler_system_debug) {
-				printf("debug: %llu (0x%llx)\n", x1, x1);
-
-			} else if (x0 == compiler_system_exit) {
-				exit((int) x1);
-
-			} else if (x0 == compiler_system_read) {
-				x1 = (nat) read((int) x1, (void*) x2, (size_t) x3);
-
-			} else if (x0 == compiler_system_write) { 
-				x1 = (nat) write((int) x1, (void*) x2, (size_t) x3); 
-
-			} else if (x0 == compiler_system_open) { 
-				x1 = (nat) open((const char*) x1, (int) x2, (mode_t) x3); 
-
-			} else if (x0 == compiler_system_close) { 
-				x1 = (nat) close((int) x1); 
-
-			} else if (x0 == compiler_system_mmap) {
-				x1 = (uint64_t) (void*) mmap(
-					(void*) x1, 
-					(size_t) x2, 
-					(int) x3, (int) x4, 
-					(int) x5, (off_t) x6
-				);
-
-			} else if (x0 == compiler_system_munmap) {
-				x1 = (uint64_t) munmap(
-					(void*) x1, 
-					(size_t) x2
-				);
-
-			} else { 
-				printf("compiler: error: unknown system call number %llu\n", x0); 
-				abort(); 
-			} 
-
-			*(((nat*) bridge) + compiler_arg1) = x1;
-			*(((nat*) bridge) + compiler_arg2) = (nat) errno;
-		} 
-
-
-
-
-if (not_literal and is_label[this] and is_undefined[this]) {
-					new.args[i] = is_undefined[this];
-				}
-
-*/
-
-			/*printf("strings: (%llu count) : \n", string_list_count);
-			for (nat i = 0; i < string_list_count; i++) {
-				printf("#%llu string: .string = %p .length = %llu, .label = %llu, \n", 
-					i, (void*) string_list[i], (nat) strlen(string_list[i]), string_label[i]
-				);
-			}*/
 
 
 

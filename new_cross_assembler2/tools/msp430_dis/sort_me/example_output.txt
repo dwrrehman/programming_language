@@ -1,0 +1,123 @@
+msp430_disassembler: ./run
+printing the text: 
+text 0x103d03ec0 @ 248 chars...
+set address of section #0 to be 57344...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+FOUND 10...
+set address of section #1 to be 65534...
+FOUND 10...
+found terminating character, q.
+printing 2 sections: 
+section #0: .address = 0xe000, .length = 74 :: 
+	[21] [83] [b2] [40] [80] [5a] [20] [01] [f2] [d3] [22] [00] [f2] [e3] [21] [00] 
+	[b1] [40] [10] [27] [00] [00] [91] [83] [00] [00] [81] [93] [00] [00] [fb] [23] 
+	[f5] [3f] [31] [40] [00] [04] [b2] [40] [48] [e0] [00] [02] [b2] [40] [48] [e0] 
+	[02] [02] [b0] [12] [40] [e0] [0c] [43] [b0] [12] [00] [e0] [b0] [12] [44] [e0] 
+	[1c] [43] [30] [41] [03] [43] [ff] [3f] [30] [41] [end of section]
+section #1: .address = 0xfffe, .length = 2 :: 
+	[22] [e0] [end of section]
+[done]
+heres the text too...
+@e000
+21 83 B2 40 80 5A 20 01 F2 D3 22 00 F2 E3 21 00 
+B1 40 10 27 00 00 91 83 00 00 81 93 00 00 FB 23 
+F5 3F 31 40 00 04 B2 40 48 E0 00 02 B2 40 48 E0 
+02 02 B0 12 40 E0 0C 43 B0 12 00 E0 B0 12 44 E0 
+1C 43 30 41 03 43 FF 3F 30 41 
+@fffe
+22 E0 
+q
+
+dissassembly of section #0: [address=0x0000e000], [length=74]
+0000e000:   8321           	SUBC.W	SP <-- *(CG2)
+
+0000e002:   40b2 5a80 0120 	MOV.W	(SR + 0x0120) <-- #0x5a80
+
+0000e008:   d3f2      0022 	BIS.B	(SR + 0x0022) <-- *(CG2), CG2++
+
+0000e00c:   e3f2      0021 	XOR.B	(SR + 0x0021) <-- *(CG2), CG2++
+
+0000e010:   40b1 2710 0000 	MOV.W	(SP + 0x0000) <-- #0x2710
+
+0000e016:   8391 0000 9381 	SUBC.W	(SP + 0x9381) <-- (CG2 + 0x0000)
+
+0000e01c:   0000 				extended ins: MOVA, CMPA, ADDA, SUBA, RRCM, RRAM, RLAM, RRUM
+
+0000e01e:   23fb           	JNE/JNZ	[s=1] [offset=1fb]
+
+0000e020:   3ff5           	JMP	[s=1] [offset=1f5]
+
+0000e022:   4031 0400      	MOV.W	SP <-- #0x400
+
+0000e026:   40b2 e048 0200 	MOV.W	(SR + 0x0200) <-- #0xe048
+
+0000e02c:   40b2 e048 0202 	MOV.W	(SR + 0x0202) <-- #0xe048
+
+0000e032:   12b0 				[error: undefined op code 1]
+
+0000e034:   e040           	XOR.B	PC <-- PC
+
+0000e036:   430c           	MOV.W	R12 <-- CG2
+
+0000e038:   12b0 				[error: undefined op code 1]
+
+0000e03a:   e000           	XOR.W	PC <-- PC
+
+0000e03c:   12b0 				[error: undefined op code 1]
+
+0000e03e:   e044           	XOR.B	R4 <-- PC
+
+0000e040:   431c 4130      	MOV.W	R12 <-- (CG2 + 0x4130)
+
+0000e044:   4303           	MOV.W	CG2 <-- CG2
+
+0000e046:   3fff           	JMP	[s=1] [offset=1ff]
+
+0000e048:   4130           	MOV.W	PC <-- *(SP), SP++
+
+dissassembly of section #1: [address=0x0000fffe], [length=2]
+0000fffe:   e022           	XOR.W	SR <-- *(PC)
+
+msp430_disassembler: cat example_c_code.txt 
+#define WDTCTL     (*((volatile unsigned short *)0x015C))
+
+#define P1OUT (*((volatile unsigned short *)0x0202))
+#define P1DIR (*((volatile unsigned short *)0x0204))
+
+void notmain ( void )
+{
+    unsigned short ra;
+
+    WDTCTL = 0x5A80;
+
+    P1DIR|=0x02;
+
+    while(1)
+    {
+        P1OUT |= 0x0002;
+        for(ra=0;ra<10000;ra++) dummy(ra);
+        P1OUT &= 0xFFFD;
+        for(ra=0;ra<10000;ra++) dummy(ra);
+    }
+}
+
+
+
+msp430_disassembler: cat example
+cat: example: No such file or directory
+msp430_disassembler: cat example.
+cat: example.: No such file or directory
+msp430_disassembler: cat example.txt 
+@e000
+21 83 B2 40 80 5A 20 01 F2 D3 22 00 F2 E3 21 00 
+B1 40 10 27 00 00 91 83 00 00 81 93 00 00 FB 23 
+F5 3F 31 40 00 04 B2 40 48 E0 00 02 B2 40 48 E0 
+02 02 B0 12 40 E0 0C 43 B0 12 00 E0 B0 12 44 E0 
+1C 43 30 41 03 43 FF 3F 30 41 
+@fffe
+22 E0 
+q
+msp430_dissassembler: 

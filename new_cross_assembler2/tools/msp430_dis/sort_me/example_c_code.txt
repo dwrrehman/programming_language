@@ -1,0 +1,24 @@
+#define WDTCTL     (*((volatile unsigned short *)0x015C))
+
+#define P1OUT (*((volatile unsigned short *)0x0202))
+#define P1DIR (*((volatile unsigned short *)0x0204))
+
+void notmain ( void )
+{
+    unsigned short ra;
+
+    WDTCTL = 0x5A80;
+
+    P1DIR|=0x02;
+
+    while(1)
+    {
+        P1OUT |= 0x0002;
+        for(ra=0;ra<10000;ra++) dummy(ra);
+        P1OUT &= 0xFFFD;
+        for(ra=0;ra<10000;ra++) dummy(ra);
+    }
+}
+
+
+
