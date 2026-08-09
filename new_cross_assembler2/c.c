@@ -1488,7 +1488,7 @@ process_file:;
 	process_op:
 		if (op == str) goto parse_string;
 		else if (op < isa_count and arg_count - 1 < arity[op]) goto next_word;
-		else if (op == eoi) break;
+		else if (op == eoi) { arg_count = 0; break; } 
 		else if (op == del) types[args[1]] |= is_undefined;
 		else if (op == file) {
 			for (nat i = 0; i < included_count; i++) {
